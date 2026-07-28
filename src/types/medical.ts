@@ -147,7 +147,7 @@ export interface AuditLogEntry {
   timestamp: string;
   actorName: string;
   actorRole: 'Patient' | 'Emergency Doctor' | 'Cardiologist' | 'Primary Care Physician' | 'Trusted Contact Proxy';
-  action: 'Created Emergency Token' | 'Viewed Records' | 'Revoked Doctor Access' | 'Updated Privacy Toggles' | 'Added Record' | 'Trusted Proxy Approved Access' | 'Revoked All Access';
+  action: 'Created Emergency Token' | 'Viewed Records' | 'Revoked Doctor Access' | 'Updated Privacy Toggles' | 'Added Record' | 'Trusted Proxy Approved Access' | 'Revoked All Access' | 'Updated Profile';
   details: string;
   ipAddress: string;
 }

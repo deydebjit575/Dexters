@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Lock, Mail, User, Key, X, CheckCircle2, Sparkles, LogIn, UserPlus } from 'lucide-react';
-import { loginWithEmail, registerWithEmail, loginWithGoogle, getCurrentUser } from '../services/firebaseService';
+import { loginWithEmail, registerWithEmail, loginWithGoogle, FirebaseUser } from '../services/firebaseService';
+import { useMediVault } from '../context/MediVaultContext';
 
 interface FirebaseAuthModalProps {
   isOpen: boolean;
@@ -16,9 +17,10 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
   onSuccessLogin,
   initialTab = 'login',
 }) => {
+  const { handleUserLogin } = useMediVault();
   const [tab, setTab] = useState<'login' | 'register'>(initialTab);
-  const [name, setName] = useState('Priya Sharma');
-  const [email, setEmail] = useState('priya.sharma@medivault.io');
+  const [name, setName] = useState('Rahul Verma');
+  const [email, setEmail] = useState('rahul.verma@example.com');
   const [password, setPassword] = useState('••••••••••••');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,12 +32,14 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
     setLoading(true);
     setError(null);
     try {
+      let user: FirebaseUser;
       if (tab === 'login') {
-        await loginWithEmail(email, password);
+        user = await loginWithEmail(email, password);
       } else {
-        await registerWithEmail(name, email, password);
+        user = await registerWithEmail(name, email, password);
       }
       setLoading(false);
+      await handleUserLogin(user);
       onClose();
       if (onSuccessLogin) onSuccessLogin();
     } catch (err: any) {
@@ -47,8 +51,9 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
   const handleGoogleAuth = async () => {
     setLoading(true);
     try {
-      await loginWithGoogle();
+      const user = await loginWithGoogle();
       setLoading(false);
+      await handleUserLogin(user);
       onClose();
       if (onSuccessLogin) onSuccessLogin();
     } catch (err: any) {

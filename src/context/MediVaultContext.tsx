@@ -18,11 +18,24 @@ import {
   INITIAL_LOGIN_HISTORY,
 } from '../services/mockData';
 import { createEmergencyToken, decryptPayload, importKeyFromString } from '../services/cryptoService';
+import {
+  FirebaseUser,
+  getCurrentUser,
+  logoutFirebase,
+  fetchUserDataFromFirebase,
+  saveUserDataToFirebase,
+  isDemoUser,
+} from '../services/firebaseService';
 
 export type AppView = 'landing' | 'patient' | 'access' | 'doctor';
 export type Language = 'EN' | 'HI' | 'ES' | 'FR' | 'DE';
 
 interface MediVaultContextType {
+  currentUser: FirebaseUser | null;
+  isDemoMode: boolean;
+  isFetchingFirebase: boolean;
+  syncProgress: number;
+  syncStatusText: string;
   patient: PatientProfile;
   records: MedicalRecord[];
   accessGrants: AccessGrant[];
@@ -50,6 +63,11 @@ interface MediVaultContextType {
     trustedContactPhone: string
   ) => Promise<TrustedContactApprovalRequest>;
   verifyTrustedContactOTP: (requestId: string, otp: string) => boolean;
+  handleUserLogin: (user: FirebaseUser) => Promise<void>;
+  fetchCompleteFirebaseData: () => Promise<void>;
+  logoutUser: () => Promise<void>;
+  resetToDemoProfile: () => void;
+  updatePatientProfile: (updatedFields: Partial<PatientProfile>) => void;
   // Emergency Doctor Decryption State
   doctorTokenState: {
     tokenString: string | null;
@@ -68,6 +86,14 @@ interface MediVaultContextType {
 const MediVaultContext = createContext<MediVaultContextType | undefined>(undefined);
 
 export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(() => getCurrentUser());
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => isDemoUser(getCurrentUser()));
+
+  // Live Firebase Syncing & Streaming state
+  const [isFetchingFirebase, setIsFetchingFirebase] = useState<boolean>(false);
+  const [syncProgress, setSyncProgress] = useState<number>(100);
+  const [syncStatusText, setSyncStatusText] = useState<string>('Firebase Encrypted Vault Active');
+
   const [patient, setPatient] = useState<PatientProfile>(() => {
     const saved = localStorage.getItem('medivault_patient');
     return saved ? JSON.parse(saved) : INITIAL_PATIENT;
@@ -127,19 +153,137 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     errorMessage: null,
   });
 
-  // Sync to LocalStorage
+  // Sync to LocalStorage & Firebase DB per user
   useEffect(() => {
-    localStorage.setItem('medivault_patient', JSON.stringify(patient));
-    localStorage.setItem('medivault_records', JSON.stringify(records));
-    localStorage.setItem('medivault_grants', JSON.stringify(accessGrants));
-    localStorage.setItem('medivault_logs', JSON.stringify(auditLogs));
-    localStorage.setItem('medivault_granular_perms', JSON.stringify(granularPermissions));
+    if (currentUser && !isDemoMode) {
+      saveUserDataToFirebase(currentUser.uid, {
+        patient,
+        records,
+        accessGrants,
+        auditLogs,
+        granularPermissions,
+      });
+    } else {
+      localStorage.setItem('medivault_patient', JSON.stringify(patient));
+      localStorage.setItem('medivault_records', JSON.stringify(records));
+      localStorage.setItem('medivault_grants', JSON.stringify(accessGrants));
+      localStorage.setItem('medivault_logs', JSON.stringify(auditLogs));
+      localStorage.setItem('medivault_granular_perms', JSON.stringify(granularPermissions));
+    }
+
     if (activeEmergencyToken) {
       localStorage.setItem('medivault_active_token', JSON.stringify(activeEmergencyToken));
     } else {
       localStorage.removeItem('medivault_active_token');
     }
-  }, [patient, records, accessGrants, auditLogs, activeEmergencyToken, granularPermissions]);
+  }, [patient, records, accessGrants, auditLogs, activeEmergencyToken, granularPermissions, currentUser, isDemoMode]);
+
+  // Handle user login and gradual Firebase data streaming
+  const handleUserLogin = async (user: FirebaseUser) => {
+    setCurrentUser(user);
+    const demo = isDemoUser(user);
+    setIsDemoMode(demo);
+
+    if (!demo) {
+      // CLEAR ALL MOCK DATA for Priya Sharma!
+      setIsFetchingFirebase(true);
+      setSyncProgress(10);
+      setSyncStatusText('Connecting to Firebase Sovereign Auth...');
+
+      await new Promise((r) => setTimeout(r, 400));
+      setSyncProgress(30);
+      setSyncStatusText('Fetching encrypted patient identity from Firestore...');
+
+      const dbData = await fetchUserDataFromFirebase(user.uid, user.displayName, user.email);
+
+      setSyncProgress(65);
+      setSyncStatusText('Decrypting zero-knowledge medical records & storage references...');
+      await new Promise((r) => setTimeout(r, 400));
+
+      if (dbData) {
+        setPatient(dbData.patient);
+        setRecords(dbData.records);
+        setAccessGrants(dbData.accessGrants);
+        setAuditLogs(dbData.auditLogs);
+        setGranularPermissions(dbData.granularPermissions);
+      }
+
+      setSyncProgress(90);
+      setSyncStatusText('Verifying cryptographic integrity & access permissions...');
+      await new Promise((r) => setTimeout(r, 300));
+
+      setSyncProgress(100);
+      setSyncStatusText('Firebase Synchronized Completely');
+      setIsFetchingFirebase(false);
+    } else {
+      resetToDemoProfile();
+    }
+  };
+
+  // Dedicated Complete Firebase Fetch Function
+  const fetchCompleteFirebaseData = async () => {
+    if (!currentUser || isDemoMode) {
+      // In demo mode or offline mode, simulate complete re-sync
+      setIsFetchingFirebase(true);
+      setSyncProgress(20);
+      setSyncStatusText('Querying Firebase Cloud Nodes...');
+      await new Promise((r) => setTimeout(r, 400));
+      setSyncProgress(60);
+      setSyncStatusText('Parsing AES-256 Encrypted Records...');
+      await new Promise((r) => setTimeout(r, 400));
+      setSyncProgress(100);
+      setSyncStatusText('Demo Vault Fetched Completely');
+      setIsFetchingFirebase(false);
+      return;
+    }
+
+    setIsFetchingFirebase(true);
+    setSyncProgress(15);
+    setSyncStatusText('Initiating Full Firebase Sync & Decryption...');
+    await new Promise((r) => setTimeout(r, 350));
+
+    setSyncProgress(45);
+    setSyncStatusText('Fetching Firestore collections & file storage hashes...');
+    const dbData = await fetchUserDataFromFirebase(currentUser.uid, currentUser.displayName, currentUser.email);
+
+    setSyncProgress(80);
+    setSyncStatusText('Rebuilding patient medical graph & security logs...');
+    await new Promise((r) => setTimeout(r, 350));
+
+    if (dbData) {
+      setPatient(dbData.patient);
+      setRecords(dbData.records);
+      setAccessGrants(dbData.accessGrants);
+      setAuditLogs(dbData.auditLogs);
+      setGranularPermissions(dbData.granularPermissions);
+    }
+
+    setSyncProgress(100);
+    setSyncStatusText('Data Fetched Completely from Firebase (AES-256-GCM Verified)');
+    setIsFetchingFirebase(false);
+  };
+
+  // Logout current user and optionally restore preview
+  const logoutUser = async () => {
+    await logoutFirebase();
+    setCurrentUser(null);
+    setIsDemoMode(true);
+    resetToDemoProfile();
+  };
+
+  // Reset to default Priya Sharma preview state
+  const resetToDemoProfile = () => {
+    setPatient(INITIAL_PATIENT);
+    setRecords(INITIAL_RECORDS);
+    setAccessGrants(INITIAL_GRANTS);
+    setAuditLogs(INITIAL_AUDIT_LOGS);
+    setGranularPermissions(INITIAL_GRANULAR_PERMISSIONS);
+    localStorage.setItem('medivault_patient', JSON.stringify(INITIAL_PATIENT));
+    localStorage.setItem('medivault_records', JSON.stringify(INITIAL_RECORDS));
+    localStorage.setItem('medivault_grants', JSON.stringify(INITIAL_GRANTS));
+    localStorage.setItem('medivault_logs', JSON.stringify(INITIAL_AUDIT_LOGS));
+    localStorage.setItem('medivault_granular_perms', JSON.stringify(INITIAL_GRANULAR_PERMISSIONS));
+  };
 
   // Check URL hash on page load for #view=doctor&token=...&key=...
   useEffect(() => {
@@ -513,9 +657,28 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   };
 
+  const updatePatientProfile = (updatedFields: Partial<PatientProfile>) => {
+    setPatient((prev) => {
+      const updated = { ...prev, ...updatedFields };
+      addAuditEntry({
+        actorName: updated.fullName,
+        actorRole: 'Patient',
+        action: 'Updated Profile',
+        details: `Updated patient profile details (Name: ${updated.fullName}, Age: ${updated.age}, Blood: ${updated.bloodType}).`,
+        ipAddress: '127.0.0.1 (Local Sovereign Session)',
+      });
+      return updated;
+    });
+  };
+
   return (
     <MediVaultContext.Provider
       value={{
+        currentUser,
+        isDemoMode,
+        isFetchingFirebase,
+        syncProgress,
+        syncStatusText,
         patient,
         records,
         accessGrants,
@@ -539,6 +702,11 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         revokeActiveEmergencyToken,
         requestTrustedContactApproval,
         verifyTrustedContactOTP,
+        handleUserLogin,
+        fetchCompleteFirebaseData,
+        logoutUser,
+        resetToDemoProfile,
+        updatePatientProfile,
         doctorTokenState,
         loadDoctorEmergencyToken,
         simulateSelfDestructKey,

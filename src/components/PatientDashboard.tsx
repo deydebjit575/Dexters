@@ -45,6 +45,7 @@ import {
   TrendingUp,
   BarChart2,
   PhoneCall,
+  RefreshCw,
 } from 'lucide-react';
 import { useMediVault } from '../context/MediVaultContext';
 import { RecordCategory, PrescribedMedicine, MedicalRecord } from '../types/medical';
@@ -81,10 +82,45 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     toggleTheme,
     setActiveView,
     currentLang,
+    currentUser,
+    isDemoMode,
+    isFetchingFirebase,
+    syncProgress,
+    syncStatusText,
+    fetchCompleteFirebaseData,
+    logoutUser,
+    updatePatientProfile,
   } = useMediVault();
 
   // Sidebar Tabs State
   const [sidebarTab, setSidebarTab] = useState<string>(activeSubTab || 'dashboard');
+
+  // Profile Edit State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editFullName, setEditFullName] = useState(patient.fullName);
+  const [editAge, setEditAge] = useState(patient.age);
+  const [editGender, setEditGender] = useState(patient.gender);
+  const [editBloodType, setEditBloodType] = useState(patient.bloodType);
+  const [editEmail, setEditEmail] = useState(patient.email);
+  const [editPhone, setEditPhone] = useState(patient.phone);
+  const [editAddress, setEditAddress] = useState(patient.address);
+  const [editEmergencyName, setEditEmergencyName] = useState(patient.emergencyContact.name);
+  const [editEmergencyRelation, setEditEmergencyRelation] = useState(patient.emergencyContact.relationship);
+  const [editEmergencyPhone, setEditEmergencyPhone] = useState(patient.emergencyContact.phone);
+  const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    setEditFullName(patient.fullName);
+    setEditAge(patient.age);
+    setEditGender(patient.gender);
+    setEditBloodType(patient.bloodType);
+    setEditEmail(patient.email);
+    setEditPhone(patient.phone);
+    setEditAddress(patient.address);
+    setEditEmergencyName(patient.emergencyContact.name);
+    setEditEmergencyRelation(patient.emergencyContact.relationship);
+    setEditEmergencyPhone(patient.emergencyContact.phone);
+  }, [patient]);
 
   useEffect(() => {
     if (activeSubTab) setSidebarTab(activeSubTab);
@@ -255,8 +291,15 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     setIsAiSummarizing(true);
     setTimeout(() => {
       setIsAiSummarizing(false);
+      const allergiesList = patient.allergies.length > 0 
+        ? patient.allergies.map(a => `${a.allergen} (${a.severity})`).join(', ')
+        : 'No known allergies recorded';
+      const conditionsList = patient.chronicConditions.length > 0
+        ? patient.chronicConditions.map(c => `${c.name} (${c.status})`).join(', ')
+        : 'No chronic conditions recorded';
+
       setAiSummaryText(
-        `AI Health Synthesis for Priya Sharma (32 Yrs, O+):\n• Active Conditions: Type 2 Diabetes Mellitus (Managed) & Vitamin D Deficiency.\n• Active Medication: Metformin 500mg (BD), Insulin Glargine 12U (HS), Vitamin D3 60,000 IU.\n• Allergies Alert: Life-threatening Penicillin allergy, Moderate Peanut allergy.\n• Metabolic Status: Fasting Glucose 118 mg/dL, HbA1c 6.8% (Target Range). Blood pressure & kidney markers normal.`
+        `AI Health Synthesis for ${patient.fullName} (${patient.age} Yrs, ${patient.bloodType}):\n• Active Conditions: ${conditionsList}.\n• Allergies Alert: ${allergiesList}.\n• Encrypted Records Secured: ${records.length} items.\n• Status: Sovereign Zero-Knowledge Firebase Vault Verified.`
       );
     }, 1000);
   };
@@ -266,7 +309,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     setTimeout(() => {
       setOcrScanning(false);
       setOcrResult(
-        `OCR Extraction Success:\n• Doctor: Dr. Sneha Das (City Care Hospital)\n• Diagnosis: Acute Viral Pyrexia\n• Prescribed: Crocin 650mg (Q6H x 5 Days)\n• Status: Ready to auto-populate record!`
+        `OCR Extraction Success:\n• Patient Identity: ${patient.fullName}\n• Doctor: Dr. Sneha Das (City Care Hospital)\n• Diagnosis: Acute Viral Pyrexia\n• Prescribed: Crocin 650mg (Q6H x 5 Days)\n• Status: Ready to auto-populate record!`
       );
     }, 1200);
   };
@@ -277,7 +320,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
       (med1.toLowerCase().includes('insulin') && med2.toLowerCase().includes('metformin'))
     ) {
       setInteractionResult(
-        `⚠️ Synergistic Combination: Metformin + Insulin Glargine. Monitor for potential hypoglycemia. Co-prescribed under Dr. Amit Roy supervision.`
+        `⚠️ Synergistic Combination: Metformin + Insulin Glargine. Monitor for potential hypoglycemia. Co-prescribed under supervision.`
       );
     } else if (med1.toLowerCase().includes('crocin') || med2.toLowerCase().includes('crocin')) {
       setInteractionResult(
@@ -295,14 +338,17 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     if (!voiceQuery) return;
     const q = voiceQuery.toLowerCase();
     if (q.includes('allergy') || q.includes('allergies')) {
-      setVoiceResponse(`Voice AI: Priya Sharma has 2 recorded allergies: Penicillin (Life-Threatening) and Peanuts (Moderate).`);
+      const algsText = patient.allergies.length > 0 
+        ? patient.allergies.map(a => `${a.allergen} (${a.severity})`).join(', ')
+        : 'no recorded allergies';
+      setVoiceResponse(`Voice AI: ${patient.fullName} has ${patient.allergies.length} recorded allergies: ${algsText}.`);
     } else if (q.includes('medicine') || q.includes('insulin') || q.includes('metformin')) {
-      setVoiceResponse(`Voice AI: Active medications are Metformin 500mg twice daily and Insulin Glargine 12 Units at bedtime.`);
+      setVoiceResponse(`Voice AI: Record search complete for ${patient.fullName}. ${records.length} medical records located.`);
     } else if (q.includes('token') || q.includes('emergency')) {
-      setVoiceResponse(`Voice AI: Opening Emergency Access Token Generator with AES-256 key encryption...`);
+      setVoiceResponse(`Voice AI: Opening Emergency Access Token Generator for ${patient.fullName}...`);
       onOpenEmergencyModal();
     } else {
-      setVoiceResponse(`Voice AI: Health Vault is fully synchronized. ${records.length} total records secured.`);
+      setVoiceResponse(`Voice AI: ${patient.fullName}'s Health Vault is fully synchronized. ${records.length} total records secured.`);
     }
   };
 
@@ -330,8 +376,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
             
             {/* Patient Compact Badge */}
             <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 border border-teal-500/20 mb-3 flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center font-bold text-teal-300">
-                PS
+              <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center font-extrabold text-teal-300">
+                {patient.fullName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase() || 'PT'}
               </div>
               <div className="truncate">
                 <p className="font-bold text-white text-xs truncate">{patient.fullName}</p>
@@ -361,17 +407,73 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
 
             {/* Quick Logout Button */}
             <button
-              onClick={() => setActiveView('landing')}
+              onClick={logoutUser}
               className="w-full px-4 py-3 rounded-2xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 flex items-center space-x-3 transition-colors pt-3 border-t border-slate-800/60 mt-2"
             >
               <LogOut className="w-4 h-4" />
-              <span>Logout Vault</span>
+              <span>{isDemoMode ? 'Exit Demo Preview' : 'Logout Firebase Vault'}</span>
             </button>
           </div>
         </aside>
 
         {/* MAIN DASHBOARD CONTENT AREA */}
-        <main className="lg:col-span-9 space-y-8">
+        <main className="lg:col-span-9 space-y-6">
+          
+          {/* Live Firebase Sync Header Banner */}
+          <div className="p-4 rounded-3xl bg-slate-900/90 border border-teal-500/30 backdrop-blur-xl shadow-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center space-x-2.5">
+                <div className="relative flex-shrink-0">
+                  <div className={`w-3 h-3 rounded-full ${isFetchingFirebase ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'}`} />
+                  <div className={`w-3 h-3 rounded-full absolute inset-0 ${isFetchingFirebase ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2 flex-wrap gap-1">
+                    <span className="font-bold text-white">Firebase Firestore Engine</span>
+                    {isDemoMode ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
+                        Preview: Priya Sharma Data
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+                        User Vault Active: {currentUser?.displayName}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">{syncStatusText}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <button
+                  onClick={fetchCompleteFirebaseData}
+                  disabled={isFetchingFirebase}
+                  className="px-3.5 py-2 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 text-teal-300 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-glow-teal disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isFetchingFirebase ? 'animate-spin text-teal-400' : 'text-teal-400'}`} />
+                  <span>{isFetchingFirebase ? 'Fetching Encrypted Data...' : 'Fetch Complete Firebase Data'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sync Progress Bar */}
+            {isFetchingFirebase && (
+              <div className="space-y-1 pt-1">
+                <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden p-0.5 border border-teal-500/20">
+                  <motion.div
+                    className="bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-400 h-full rounded-full"
+                    initial={{ width: '0%' }}
+                    animate={{ width: `${syncProgress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                  <span>Gradual Firebase Streaming & Decryption</span>
+                  <span>{syncProgress}% Complete</span>
+                </div>
+              </div>
+            )}
+          </div>
           
           {/* TAB 1: OVERVIEW DASHBOARD */}
           {sidebarTab === 'dashboard' && (
@@ -1327,48 +1429,244 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           {/* TAB 10: PROFILE */}
           {sidebarTab === 'profile' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white flex items-center space-x-2">
-                  <UserCheck className="w-5 h-5 text-teal-400" />
-                  <span>Patient Identity Profile</span>
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Demographic details, emergency contacts, and proxy registrations.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+                    <UserCheck className="w-5 h-5 text-teal-400" />
+                    <span>Patient Identity Profile</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Demographic details, emergency contacts, and proxy registrations.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setIsEditingProfile(!isEditingProfile);
+                    setProfileSaveSuccess(false);
+                  }}
+                  className="px-4 py-2.5 rounded-2xl bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-teal-300 font-bold text-xs flex items-center space-x-2 transition-colors self-start sm:self-auto"
+                >
+                  <UserCheck className="w-4 h-4 text-teal-400" />
+                  <span>{isEditingProfile ? 'Cancel Editing' : 'Edit Profile Details'}</span>
+                </button>
               </div>
 
-              <div className="rounded-3xl glass-panel p-6 sm:p-8 border border-slate-800 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-                  <div>
-                    <span className="text-slate-400">Full Legal Name:</span>
-                    <p className="font-bold text-white text-sm">{patient.fullName}</p>
+              {profileSaveSuccess && (
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>Patient Profile updated successfully and synced with your Firebase Sovereign Vault!</span>
+                </div>
+              )}
+
+              {isEditingProfile ? (
+                /* EDIT PROFILE FORM */
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    updatePatientProfile({
+                      fullName: editFullName,
+                      age: Number(editAge),
+                      gender: editGender,
+                      bloodType: editBloodType,
+                      email: editEmail,
+                      phone: editPhone,
+                      address: editAddress,
+                      emergencyContact: {
+                        ...patient.emergencyContact,
+                        name: editEmergencyName,
+                        relationship: editEmergencyRelation,
+                        phone: editEmergencyPhone,
+                      },
+                    });
+                    setIsEditingProfile(false);
+                    setProfileSaveSuccess(true);
+                  }}
+                  className="rounded-3xl glass-panel p-6 sm:p-8 border border-teal-500/30 space-y-6 text-xs"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Full Legal Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={editFullName}
+                        onChange={(e) => setEditFullName(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Age (Years)</label>
+                      <input
+                        type="number"
+                        required
+                        value={editAge}
+                        onChange={(e) => setEditAge(Number(e.target.value))}
+                        className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Gender</label>
+                      <select
+                        value={editGender}
+                        onChange={(e) => setEditGender(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl glass-input text-white bg-slate-900 text-xs focus:outline-none focus:border-teal-500"
+                      >
+                        <option value="Female">Female</option>
+                        <option value="Male">Male</option>
+                        <option value="Non-Binary">Non-Binary</option>
+                        <option value="Other / Prefer not to say">Other / Prefer not to say</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Blood Group</label>
+                      <input
+                        type="text"
+                        required
+                        value={editBloodType}
+                        onChange={(e) => setEditBloodType(e.target.value)}
+                        placeholder="e.g. O+ (O-Positive)"
+                        className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-bold mb-1">Phone Number</label>
+                      <input
+                        type="text"
+                        required
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-slate-300 font-bold mb-1">Residential Address</label>
+                      <textarea
+                        rows={2}
+                        required
+                        value={editAddress}
+                        onChange={(e) => setEditAddress(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500 resize-none"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400">Patient ID:</span>
-                    <p className="font-bold text-teal-400 text-sm font-mono">{patient.id}</p>
+
+                  <div className="pt-4 border-t border-slate-800 space-y-4">
+                    <h3 className="text-sm font-bold text-teal-400">Emergency Proxy / Primary Contact</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-slate-300 font-bold mb-1">Proxy Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={editEmergencyName}
+                          onChange={(e) => setEditEmergencyName(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-bold mb-1">Relationship</label>
+                        <input
+                          type="text"
+                          required
+                          value={editEmergencyRelation}
+                          onChange={(e) => setEditEmergencyRelation(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-bold mb-1">Proxy Phone</label>
+                        <input
+                          type="text"
+                          required
+                          value={editEmergencyPhone}
+                          onChange={(e) => setEditEmergencyPhone(e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400">Age / Gender:</span>
-                    <p className="font-bold text-white">{patient.age} Years • {patient.gender}</p>
+
+                  <div className="pt-4 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingProfile(false)}
+                      className="px-5 py-2.5 rounded-2xl bg-slate-800 text-slate-300 font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 font-extrabold shadow-glow-teal"
+                    >
+                      Save Profile Changes
+                    </button>
                   </div>
-                  <div>
-                    <span className="text-slate-400">Blood Group:</span>
-                    <p className="font-bold text-teal-300">{patient.bloodType}</p>
+                </form>
+              ) : (
+                /* VIEW PROFILE CARD */
+                <div className="rounded-3xl glass-panel p-6 sm:p-8 border border-slate-800 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+                    <div>
+                      <span className="text-slate-400">Full Legal Name:</span>
+                      <p className="font-bold text-white text-sm mt-0.5">{patient.fullName}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Patient ID:</span>
+                      <p className="font-bold text-teal-400 text-sm font-mono mt-0.5">{patient.id}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Age / Gender:</span>
+                      <p className="font-bold text-white mt-0.5">{patient.age} Years • {patient.gender}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Blood Group:</span>
+                      <p className="font-bold text-teal-300 mt-0.5">{patient.bloodType}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Email Address:</span>
+                      <p className="font-bold text-white mt-0.5">{patient.email}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Phone Number:</span>
+                      <p className="font-bold text-white mt-0.5">{patient.phone}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-slate-400">Residential Address:</span>
+                      <p className="font-bold text-white mt-0.5">{patient.address}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400">Email Address:</span>
-                    <p className="font-bold text-white">{patient.email}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Phone Number:</span>
-                    <p className="font-bold text-white">{patient.phone}</p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <span className="text-slate-400">Residential Address:</span>
-                    <p className="font-bold text-white">{patient.address}</p>
+
+                  <div className="pt-6 border-t border-slate-800 space-y-3">
+                    <h3 className="text-sm font-bold text-teal-400">Designated Emergency Contact / Proxy</h3>
+                    <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-white">{patient.emergencyContact.name}</p>
+                        <p className="text-[11px] text-slate-400">{patient.emergencyContact.relationship} • {patient.emergencyContact.phone}</p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">
+                        Trusted Proxy Verified
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
