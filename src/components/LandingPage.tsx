@@ -69,10 +69,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
     await new Promise((r) => setTimeout(r, 600));
     const key = await generateAESKey();
     const sampleRecord = {
-      patient: 'Priya Sharma',
-      bloodType: 'O-Positive',
+      patient: 'Encrypted Patient Identity',
+      bloodType: 'A-Positive',
       allergy: 'Penicillin (Anaphylactic)',
-      medication: 'Metformin 500mg, Insulin Glargine 12U',
+      medication: 'Sample Prescription Record',
       timestamp: Date.now(),
     };
     const { ciphertext, iv } = await encryptPayload(sampleRecord, key);
@@ -370,10 +370,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-mono">Readable</span>
               </div>
               <div className="space-y-2 text-xs text-slate-300 font-mono">
-                <p><span className="text-slate-500">Patient:</span> Priya Sharma (32 Yrs)</p>
-                <p><span className="text-slate-500">Blood Group:</span> O-Positive</p>
+                <p><span className="text-slate-500">Patient:</span> Encrypted Patient Identity</p>
+                <p><span className="text-slate-500">Blood Group:</span> A-Positive</p>
                 <p><span className="text-slate-500">Allergy Alert:</span> Penicillin (Anaphylactic)</p>
-                <p><span className="text-slate-500">Medication:</span> Metformin 500mg, Insulin</p>
+                <p><span className="text-slate-500">Medication:</span> Sample Prescription Record</p>
               </div>
             </div>
 
@@ -453,7 +453,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
             <div className="flex items-center space-x-1 text-amber-400">★★★★★</div>
             <p className="text-xs text-slate-300 italic">"During my emergency visit to Apollo Hospital, the ER doctor scanned my MediVault QR code and immediately saw my severe penicillin allergy. It saved crucial time!"</p>
             <div className="pt-2 border-t border-slate-800 font-bold text-white text-xs">
-              Priya Sharma <span className="text-slate-500 font-normal font-mono">— Patient (32 Yrs)</span>
+              Sarah Jenkins <span className="text-slate-500 font-normal font-mono">— Patient (32 Yrs)</span>
             </div>
           </div>
 
@@ -469,7 +469,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
             <div className="flex items-center space-x-1 text-amber-400">★★★★★</div>
             <p className="text-xs text-slate-300 italic">"The Trusted Contact OTP approval feature gives immense peace of mind. I can approve emergency access for my sister even if she is unable to generate a token herself."</p>
             <div className="pt-2 border-t border-slate-800 font-bold text-white text-xs">
-              Rajesh Sharma <span className="text-slate-500 font-normal font-mono">— Registered Family Proxy</span>
+              Marcus Vance <span className="text-slate-500 font-normal font-mono">— Registered Family Proxy</span>
             </div>
           </div>
         </div>
@@ -549,7 +549,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
                   <input
                     type="text"
                     required
-                    placeholder="Priya Sharma"
+                    placeholder="Full Name"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
@@ -560,7 +560,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
                   <input
                     type="email"
                     required
-                    placeholder="priya.sharma@medivault.io"
+                    placeholder="user@example.com"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"

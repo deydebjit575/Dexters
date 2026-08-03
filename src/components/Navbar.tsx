@@ -146,7 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
               </div>
 
               {/* User Session Badge & Controls */}
-              {currentUser && !isDemoMode ? (
+              {currentUser ? (
                 <div className="flex items-center space-x-2">
                   {/* Fetch / Sync Button */}
                   <button
@@ -161,10 +161,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
 
                   <div className="flex items-center space-x-2 px-3 py-1.5 rounded-2xl bg-slate-900 border border-slate-800 text-xs">
                     <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-teal-500 to-cyan-500 flex items-center justify-center text-slate-950 font-bold text-[10px]">
-                      {currentUser.displayName.charAt(0).toUpperCase()}
+                      {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
                     </div>
                     <span className="font-semibold text-white max-w-[110px] truncate">
-                      {currentUser.displayName}
+                      {currentUser.displayName || 'Authenticated User'}
                     </span>
                     <button
                       onClick={logoutUser}
@@ -177,11 +177,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <div className="px-2.5 py-1 rounded-full bg-slate-900 border border-amber-500/30 text-[11px] font-semibold text-amber-300 flex items-center space-x-1">
-                    <Sparkles className="w-3 h-3 text-amber-400" />
-                    <span>Demo Mode (Priya)</span>
-                  </div>
-
                   <button
                     onClick={() => openAuth('login')}
                     className="px-3 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 flex items-center space-x-1.5 transition-colors"

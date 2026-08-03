@@ -26,26 +26,26 @@ let currentUser: FirebaseUser | null = (() => {
       return null;
     }
   }
-  // Default demo state user
   return null;
 })();
 
 export const getCurrentUser = (): FirebaseUser | null => currentUser;
 
-export const isDemoUser = (user: FirebaseUser | null): boolean => {
-  if (!user) return true;
-  return user.uid === 'firebase-user-priya-32' || user.email === 'priya.sharma@medivault.io';
+export const isDemoUser = (_user: FirebaseUser | null): boolean => {
+  return false;
 };
 
-export const loginWithEmail = async (email: string, pass: string): Promise<FirebaseUser> => {
+export const loginWithEmail = async (email: string, _pass: string): Promise<FirebaseUser> => {
   await new Promise((r) => setTimeout(r, 600));
   
-  // If Priya Sharma's demo email is entered
-  const isPriya = email.toLowerCase().includes('priya');
+  const formattedEmail = email.toLowerCase().trim();
+  const nameFromEmail = formattedEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ');
+  const displayName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+
   const user: FirebaseUser = {
-    uid: isPriya ? 'firebase-user-priya-32' : `user-${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
-    email: email.toLowerCase(),
-    displayName: isPriya ? 'Priya Sharma' : email.split('@')[0].replace('.', ' '),
+    uid: `user-${formattedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    email: formattedEmail,
+    displayName,
     isAnonymous: false,
   };
   currentUser = user;
@@ -53,12 +53,12 @@ export const loginWithEmail = async (email: string, pass: string): Promise<Fireb
   return user;
 };
 
-export const registerWithEmail = async (name: string, email: string, pass: string): Promise<FirebaseUser> => {
+export const registerWithEmail = async (name: string, email: string, _pass: string): Promise<FirebaseUser> => {
   await new Promise((r) => setTimeout(r, 600));
   const user: FirebaseUser = {
     uid: `user-${Date.now()}`,
-    email: email.toLowerCase(),
-    displayName: name,
+    email: email.toLowerCase().trim(),
+    displayName: name.trim(),
     isAnonymous: false,
   };
   currentUser = user;
@@ -70,8 +70,8 @@ export const loginWithGoogle = async (): Promise<FirebaseUser> => {
   await new Promise((r) => setTimeout(r, 800));
   const user: FirebaseUser = {
     uid: `google-user-${Date.now()}`,
-    email: 'new.patient@gmail.com',
-    displayName: 'New Patient (Google Verified)',
+    email: 'user@gmail.com',
+    displayName: 'Google Verified User',
     isAnonymous: false,
   };
   currentUser = user;
@@ -95,34 +95,39 @@ export const saveUserDataToFirebase = (uid: string, data: FirebaseUserData): voi
 /**
  * Firestore DB Simulator: Fetch user-specific encrypted vault data
  */
-export const fetchUserDataFromFirebase = async (uid: string, defaultName?: string, defaultEmail?: string): Promise<FirebaseUserData | null> => {
+export const fetchUserDataFromFirebase = async (
+  uid: string,
+  defaultName?: string,
+  defaultEmail?: string
+): Promise<FirebaseUserData | null> => {
   await new Promise((r) => setTimeout(r, 400));
   const raw = localStorage.getItem(`medivault_firebase_db_${uid}`);
   if (raw) {
     try {
       return JSON.parse(raw);
     } catch {
-      return null;
+      // If parsing fails, fall through to create new clean profile
     }
   }
 
-  // Create initial empty profile for new user
+  // Create initial clean empty profile for new user
   const initialNewUserPatient: PatientProfile = {
-    id: `PAT-${Math.floor(100000 + Math.random() * 900000)}`,
-    fullName: defaultName || 'New Patient User',
-    age: 30,
-    dob: '1996-01-01',
-    gender: 'Not Specified',
-    bloodType: 'A+ (A-Positive)',
-    email: defaultEmail || 'patient@medivault.io',
-    phone: '+91 99000 00000',
-    address: 'Sovereign Encrypted Cloud Vault',
+    id: uid,
+    fullName: defaultName || '',
+    age: 0,
+    dob: '',
+    gender: '',
+    bloodType: '',
+    email: defaultEmail || '',
+    phone: '',
+    address: '',
     emergencyContact: {
-      id: 'cnt-new-1',
-      name: 'Emergency Guardian',
-      relationship: 'Family Member',
-      phone: '+91 99000 11111',
-      isTrustedProxy: true,
+      id: '',
+      name: '',
+      relationship: '',
+      phone: '',
+      email: '',
+      isTrustedProxy: false,
     },
     trustedContacts: [],
     allergies: [],
@@ -147,17 +152,7 @@ export const fetchUserDataFromFirebase = async (uid: string, defaultName?: strin
     patient: initialNewUserPatient,
     records: [],
     accessGrants: [],
-    auditLogs: [
-      {
-        id: `LOG-${Math.floor(1000 + Math.random() * 9000)}`,
-        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        actorName: defaultName || 'New Patient User',
-        actorRole: 'Patient',
-        action: 'Created Emergency Token',
-        details: 'Firebase Encrypted Vault created for new patient identity.',
-        ipAddress: 'Firebase Auth Authenticated',
-      },
-    ],
+    auditLogs: [],
     granularPermissions: initialPermissions,
   };
 
@@ -187,4 +182,3 @@ export async function uploadEncryptedFileToStorage(
     sizeFormatted,
   };
 }
-

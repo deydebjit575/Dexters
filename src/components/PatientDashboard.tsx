@@ -411,7 +411,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
               className="w-full px-4 py-3 rounded-2xl text-xs font-bold text-rose-400 hover:bg-rose-500/10 flex items-center space-x-3 transition-colors pt-3 border-t border-slate-800/60 mt-2"
             >
               <LogOut className="w-4 h-4" />
-              <span>{isDemoMode ? 'Exit Demo Preview' : 'Logout Firebase Vault'}</span>
+              <span>Logout Firebase Vault</span>
             </button>
           </div>
         </aside>
@@ -430,13 +430,13 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 <div>
                   <div className="flex items-center space-x-2 flex-wrap gap-1">
                     <span className="font-bold text-white">Firebase Firestore Engine</span>
-                    {isDemoMode ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
-                        Preview: Priya Sharma Data
+                    {currentUser ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+                        User Vault Active: {currentUser.displayName}
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
-                        User Vault Active: {currentUser?.displayName}
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-500/20 text-slate-300 border border-slate-500/30 font-semibold">
+                        Guest (Unauthenticated Vault)
                       </span>
                     )}
                   </div>
@@ -1186,7 +1186,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 </span>
                 <h3 className="text-lg font-bold text-white">Family Proxy 2FA OTP Emergency Verification</h3>
                 <p className="text-xs text-slate-300">
-                  If the patient cannot approve access, an ER doctor requests access. Registered family proxies (e.g. Rajesh Sharma) receive an OTP notification to approve temporary access.
+                  If the patient cannot approve access, an ER doctor requests access. Registered family proxies receive an OTP notification to approve temporary access.
                 </p>
 
                 <div className="space-y-3 pt-2">
@@ -1284,7 +1284,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   Your master key never leaves your local device. Download a paper backup of your 256-bit AES master seed key.
                 </p>
                 <button
-                  onClick={() => alert('Downloaded Encrypted Backup Key: MV-SOVEREIGN-KEY-2026-PRIYA')}
+                  onClick={() => alert('Downloaded Encrypted Backup Key: MV-SOVEREIGN-KEY-2026-SECURE')}
                   className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-teal-300 text-xs font-bold"
                 >
                   Download Sovereign Encryption Backup Key
@@ -1726,7 +1726,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 <span>Family Proxy 2FA OTP Verification</span>
               </h3>
               <p className="text-slate-300">
-                A 6-digit OTP code was sent to registered proxy <strong className="text-white">Rajesh Sharma ({patient.emergencyContact.phone})</strong>. Enter code below:
+                A 6-digit OTP code was sent to registered proxy <strong className="text-white">{patient.emergencyContact.name || 'Designated Proxy'} ({patient.emergencyContact.phone || 'Proxy Phone'})</strong>. Enter code below:
               </p>
               
               <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-mono font-bold text-center">

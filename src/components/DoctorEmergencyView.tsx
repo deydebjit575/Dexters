@@ -31,7 +31,7 @@ export const DoctorEmergencyView: React.FC = () => {
     activeEmergencyToken,
   } = useMediVault();
 
-  const [inputToken, setInputToken] = useState('MV-9482-EMERGENCY');
+  const [inputToken, setInputToken] = useState('');
   const [inputKey, setInputKey] = useState('');
 
   const formatCountdown = (totalSeconds: number) => {
@@ -49,7 +49,7 @@ export const DoctorEmergencyView: React.FC = () => {
   const handleManualDecrypt = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputToken) {
-      loadDoctorEmergencyToken(inputToken, inputKey || 'demo-aes-key-priya');
+      loadDoctorEmergencyToken(inputToken, inputKey);
     }
   };
 
@@ -191,7 +191,7 @@ export const DoctorEmergencyView: React.FC = () => {
                 onClick={() => loadDoctorEmergencyToken(activeEmergencyToken.token, activeEmergencyToken.secretKey)}
                 className="px-4 py-2 rounded-xl bg-teal-500 text-slate-950 font-bold text-xs shadow-md"
               >
-                Decrypt Priya Sharma's Active Token
+                Decrypt Active Emergency Token
               </button>
             </div>
           )}
@@ -289,7 +289,7 @@ export const DoctorEmergencyView: React.FC = () => {
                   <span>Current Medicines & Recent Prescriptions</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Decrypted records permitted under Priya Sharma's granular visibility toggles.
+                  Decrypted records permitted under patient's granular visibility toggles.
                 </p>
               </div>
 

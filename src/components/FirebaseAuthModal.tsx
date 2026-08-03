@@ -19,9 +19,9 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
 }) => {
   const { handleUserLogin } = useMediVault();
   const [tab, setTab] = useState<'login' | 'register'>(initialTab);
-  const [name, setName] = useState('Rahul Verma');
-  const [email, setEmail] = useState('rahul.verma@example.com');
-  const [password, setPassword] = useState('••••••••••••');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,7 +136,7 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Priya Sharma"
+                    placeholder="Full Name"
                     className="w-full pl-9 pr-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
                   />
                 </div>
@@ -152,7 +152,7 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="priya.sharma@medivault.io"
+                  placeholder="user@example.com"
                   className="w-full pl-9 pr-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
                 />
               </div>

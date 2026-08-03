@@ -10,7 +10,7 @@ import {
   TrustedContactApprovalRequest,
 } from '../types/medical';
 import {
-  INITIAL_PATIENT,
+  EMPTY_PATIENT,
   INITIAL_RECORDS,
   INITIAL_GRANTS,
   INITIAL_AUDIT_LOGS,
@@ -24,7 +24,6 @@ import {
   logoutFirebase,
   fetchUserDataFromFirebase,
   saveUserDataToFirebase,
-  isDemoUser,
 } from '../services/firebaseService';
 
 export type AppView = 'landing' | 'patient' | 'access' | 'doctor';
@@ -87,39 +86,19 @@ const MediVaultContext = createContext<MediVaultContextType | undefined>(undefin
 
 export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(() => getCurrentUser());
-  const [isDemoMode, setIsDemoMode] = useState<boolean>(() => isDemoUser(getCurrentUser()));
+  const isDemoMode = false;
 
   // Live Firebase Syncing & Streaming state
   const [isFetchingFirebase, setIsFetchingFirebase] = useState<boolean>(false);
   const [syncProgress, setSyncProgress] = useState<number>(100);
   const [syncStatusText, setSyncStatusText] = useState<string>('Firebase Encrypted Vault Active');
 
-  const [patient, setPatient] = useState<PatientProfile>(() => {
-    const saved = localStorage.getItem('medivault_patient');
-    return saved ? JSON.parse(saved) : INITIAL_PATIENT;
-  });
-
-  const [records, setRecords] = useState<MedicalRecord[]>(() => {
-    const saved = localStorage.getItem('medivault_records');
-    return saved ? JSON.parse(saved) : INITIAL_RECORDS;
-  });
-
-  const [accessGrants, setAccessGrants] = useState<AccessGrant[]>(() => {
-    const saved = localStorage.getItem('medivault_grants');
-    return saved ? JSON.parse(saved) : INITIAL_GRANTS;
-  });
-
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
-    const saved = localStorage.getItem('medivault_logs');
-    return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
-  });
-
+  const [patient, setPatient] = useState<PatientProfile>(EMPTY_PATIENT);
+  const [records, setRecords] = useState<MedicalRecord[]>(INITIAL_RECORDS);
+  const [accessGrants, setAccessGrants] = useState<AccessGrant[]>(INITIAL_GRANTS);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOGS);
   const [loginHistory] = useState<LoginHistoryEntry[]>(INITIAL_LOGIN_HISTORY);
-
-  const [granularPermissions, setGranularPermissions] = useState<GranularPermissions>(() => {
-    const saved = localStorage.getItem('medivault_granular_perms');
-    return saved ? JSON.parse(saved) : INITIAL_GRANULAR_PERMISSIONS;
-  });
+  const [granularPermissions, setGranularPermissions] = useState<GranularPermissions>(INITIAL_GRANULAR_PERMISSIONS);
 
   const [trustedRequests, setTrustedRequests] = useState<TrustedContactApprovalRequest[]>([]);
 
@@ -153,9 +132,9 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     errorMessage: null,
   });
 
-  // Sync to LocalStorage & Firebase DB per user
+  // Sync to Firebase DB per user
   useEffect(() => {
-    if (currentUser && !isDemoMode) {
+    if (currentUser) {
       saveUserDataToFirebase(currentUser.uid, {
         patient,
         records,
@@ -163,12 +142,6 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         auditLogs,
         granularPermissions,
       });
-    } else {
-      localStorage.setItem('medivault_patient', JSON.stringify(patient));
-      localStorage.setItem('medivault_records', JSON.stringify(records));
-      localStorage.setItem('medivault_grants', JSON.stringify(accessGrants));
-      localStorage.setItem('medivault_logs', JSON.stringify(auditLogs));
-      localStorage.setItem('medivault_granular_perms', JSON.stringify(granularPermissions));
     }
 
     if (activeEmergencyToken) {
@@ -176,63 +149,69 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } else {
       localStorage.removeItem('medivault_active_token');
     }
-  }, [patient, records, accessGrants, auditLogs, activeEmergencyToken, granularPermissions, currentUser, isDemoMode]);
+  }, [patient, records, accessGrants, auditLogs, activeEmergencyToken, granularPermissions, currentUser]);
+
+  // Initial load of authenticated user document
+  useEffect(() => {
+    if (currentUser) {
+      fetchUserDataFromFirebase(currentUser.uid, currentUser.displayName, currentUser.email).then((dbData) => {
+        if (dbData) {
+          setPatient(dbData.patient);
+          setRecords(dbData.records);
+          setAccessGrants(dbData.accessGrants);
+          setAuditLogs(dbData.auditLogs);
+          setGranularPermissions(dbData.granularPermissions);
+        }
+      });
+    } else {
+      resetToEmptyProfile();
+    }
+  }, [currentUser?.uid]);
 
   // Handle user login and gradual Firebase data streaming
   const handleUserLogin = async (user: FirebaseUser) => {
     setCurrentUser(user);
-    const demo = isDemoUser(user);
-    setIsDemoMode(demo);
 
-    if (!demo) {
-      // CLEAR ALL MOCK DATA for Priya Sharma!
-      setIsFetchingFirebase(true);
-      setSyncProgress(10);
-      setSyncStatusText('Connecting to Firebase Sovereign Auth...');
+    setIsFetchingFirebase(true);
+    setSyncProgress(10);
+    setSyncStatusText('Connecting to Firebase Sovereign Auth...');
 
-      await new Promise((r) => setTimeout(r, 400));
-      setSyncProgress(30);
-      setSyncStatusText('Fetching encrypted patient identity from Firestore...');
+    await new Promise((r) => setTimeout(r, 400));
+    setSyncProgress(30);
+    setSyncStatusText('Fetching encrypted patient identity from Firestore...');
 
-      const dbData = await fetchUserDataFromFirebase(user.uid, user.displayName, user.email);
+    const dbData = await fetchUserDataFromFirebase(user.uid, user.displayName, user.email);
 
-      setSyncProgress(65);
-      setSyncStatusText('Decrypting zero-knowledge medical records & storage references...');
-      await new Promise((r) => setTimeout(r, 400));
+    setSyncProgress(65);
+    setSyncStatusText('Decrypting zero-knowledge medical records & storage references...');
+    await new Promise((r) => setTimeout(r, 400));
 
-      if (dbData) {
-        setPatient(dbData.patient);
-        setRecords(dbData.records);
-        setAccessGrants(dbData.accessGrants);
-        setAuditLogs(dbData.auditLogs);
-        setGranularPermissions(dbData.granularPermissions);
-      }
-
-      setSyncProgress(90);
-      setSyncStatusText('Verifying cryptographic integrity & access permissions...');
-      await new Promise((r) => setTimeout(r, 300));
-
-      setSyncProgress(100);
-      setSyncStatusText('Firebase Synchronized Completely');
-      setIsFetchingFirebase(false);
-    } else {
-      resetToDemoProfile();
+    if (dbData) {
+      setPatient(dbData.patient);
+      setRecords(dbData.records);
+      setAccessGrants(dbData.accessGrants);
+      setAuditLogs(dbData.auditLogs);
+      setGranularPermissions(dbData.granularPermissions);
     }
+
+    setSyncProgress(90);
+    setSyncStatusText('Verifying cryptographic integrity & access permissions...');
+    await new Promise((r) => setTimeout(r, 300));
+
+    setSyncProgress(100);
+    setSyncStatusText('Firebase Synchronized Completely');
+    setIsFetchingFirebase(false);
   };
 
   // Dedicated Complete Firebase Fetch Function
   const fetchCompleteFirebaseData = async () => {
-    if (!currentUser || isDemoMode) {
-      // In demo mode or offline mode, simulate complete re-sync
+    if (!currentUser) {
       setIsFetchingFirebase(true);
-      setSyncProgress(20);
-      setSyncStatusText('Querying Firebase Cloud Nodes...');
-      await new Promise((r) => setTimeout(r, 400));
-      setSyncProgress(60);
-      setSyncStatusText('Parsing AES-256 Encrypted Records...');
-      await new Promise((r) => setTimeout(r, 400));
+      setSyncProgress(30);
+      setSyncStatusText('No user logged in...');
+      await new Promise((r) => setTimeout(r, 300));
       setSyncProgress(100);
-      setSyncStatusText('Demo Vault Fetched Completely');
+      setSyncStatusText('Sign in to synchronize profile document.');
       setIsFetchingFirebase(false);
       return;
     }
@@ -243,7 +222,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     await new Promise((r) => setTimeout(r, 350));
 
     setSyncProgress(45);
-    setSyncStatusText('Fetching Firestore collections & file storage hashes...');
+    setSyncStatusText('Fetching Firestore collection for user UID...');
     const dbData = await fetchUserDataFromFirebase(currentUser.uid, currentUser.displayName, currentUser.email);
 
     setSyncProgress(80);
@@ -263,27 +242,28 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsFetchingFirebase(false);
   };
 
-  // Logout current user and optionally restore preview
+  // Logout current user and restore clean empty state
   const logoutUser = async () => {
     await logoutFirebase();
     setCurrentUser(null);
-    setIsDemoMode(true);
-    resetToDemoProfile();
+    resetToEmptyProfile();
   };
 
-  // Reset to default Priya Sharma preview state
-  const resetToDemoProfile = () => {
-    setPatient(INITIAL_PATIENT);
-    setRecords(INITIAL_RECORDS);
-    setAccessGrants(INITIAL_GRANTS);
-    setAuditLogs(INITIAL_AUDIT_LOGS);
+  // Reset to clean empty profile state
+  const resetToEmptyProfile = () => {
+    setPatient(EMPTY_PATIENT);
+    setRecords([]);
+    setAccessGrants([]);
+    setAuditLogs([]);
     setGranularPermissions(INITIAL_GRANULAR_PERMISSIONS);
-    localStorage.setItem('medivault_patient', JSON.stringify(INITIAL_PATIENT));
-    localStorage.setItem('medivault_records', JSON.stringify(INITIAL_RECORDS));
-    localStorage.setItem('medivault_grants', JSON.stringify(INITIAL_GRANTS));
-    localStorage.setItem('medivault_logs', JSON.stringify(INITIAL_AUDIT_LOGS));
-    localStorage.setItem('medivault_granular_perms', JSON.stringify(INITIAL_GRANULAR_PERMISSIONS));
+    localStorage.removeItem('medivault_patient');
+    localStorage.removeItem('medivault_records');
+    localStorage.removeItem('medivault_grants');
+    localStorage.removeItem('medivault_logs');
+    localStorage.removeItem('medivault_granular_perms');
   };
+
+  const resetToDemoProfile = resetToEmptyProfile;
 
   // Check URL hash on page load for #view=doctor&token=...&key=...
   useEffect(() => {
@@ -351,7 +331,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (rec.id === recordId) {
           const updatedState = !rec.isPrivateFromEmergency;
           addAuditEntry({
-            actorName: patient.fullName,
+            actorName: patient.fullName || 'Patient',
             actorRole: 'Patient',
             action: 'Updated Privacy Toggles',
             details: `Toggled privacy for "${rec.title}" to ${updatedState ? 'PRIVATE (Hidden from emergency)' : 'PUBLIC (Visible in emergency)'}.`,
@@ -370,7 +350,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       [key]: !prev[key],
     }));
     addAuditEntry({
-      actorName: patient.fullName,
+      actorName: patient.fullName || 'Patient',
       actorRole: 'Patient',
       action: 'Updated Privacy Toggles',
       details: `Toggled granular permission: ${key}.`,
@@ -383,7 +363,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const record: MedicalRecord = { ...newRec, id };
     setRecords((prev) => [record, ...prev]);
     addAuditEntry({
-      actorName: patient.fullName,
+      actorName: patient.fullName || 'Patient',
       actorRole: 'Patient',
       action: 'Added Record',
       details: `Added new medical record: "${record.title}".`,
@@ -396,7 +376,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       prev.map((grant) => {
         if (grant.id === grantId) {
           addAuditEntry({
-            actorName: patient.fullName,
+            actorName: patient.fullName || 'Patient',
             actorRole: 'Patient',
             action: 'Revoked Doctor Access',
             details: `Manually revoked access for ${grant.doctorName} (${grant.hospital}).`,
@@ -417,7 +397,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAccessGrants((prev) => prev.map((g) => ({ ...g, status: 'revoked' as const })));
     revokeActiveEmergencyToken();
     addAuditEntry({
-      actorName: patient.fullName,
+      actorName: patient.fullName || 'Patient',
       actorRole: 'Patient',
       action: 'Revoked All Access',
       details: 'Revoked all active access grants and emergency tokens.',
@@ -445,7 +425,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const token = await createEmergencyToken(
-      patient.id,
+      patient.id || 'PAT-TEMP',
       allowedIds,
       payloadObj,
       durationMinutes
@@ -469,7 +449,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAccessGrants((prev) => [newGrant, ...prev]);
 
     addAuditEntry({
-      actorName: patient.fullName,
+      actorName: patient.fullName || 'Patient',
       actorRole: 'Patient',
       action: 'Created Emergency Token',
       details: `Generated ${durationMinutes}-minute zero-knowledge encrypted emergency token (${token.token}) containing ${allowedRecords.length} records.`,
@@ -492,7 +472,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }));
 
       addAuditEntry({
-        actorName: patient.fullName,
+        actorName: patient.fullName || 'Patient',
         actorRole: 'Patient',
         action: 'Revoked Doctor Access',
         details: 'Active emergency token destroyed and revoked.',
@@ -513,7 +493,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       requestTimestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
       trustedContactPhone,
       status: 'pending',
-      otpCode: '948201', // Simulated fixed OTP
+      otpCode: '948201',
       durationMinutes: 60,
     };
     setTrustedRequests((prev) => [req, ...prev]);
@@ -528,7 +508,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           if (req.otpCode === otp.trim()) {
             success = true;
             addAuditEntry({
-              actorName: patient.emergencyContact.name,
+              actorName: patient.emergencyContact.name || 'Trusted Contact Proxy',
               actorRole: 'Trusted Contact Proxy',
               action: 'Trusted Proxy Approved Access',
               details: `OTP verified. Temporary ${req.durationMinutes}-minute emergency access granted to ${req.doctorName} at ${req.hospital}.`,
@@ -575,21 +555,22 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return;
       }
 
-      let tokenPayload = activeTok?.payload;
-      let tokenIv = activeTok?.iv;
-      let expiresAt = activeTok?.expiresAt || Date.now() + 15 * 60 * 1000;
+      const tokenPayload = activeTok?.payload;
+      const tokenIv = activeTok?.iv;
+      const expiresAt = activeTok?.expiresAt || Date.now() + 15 * 60 * 1000;
 
       if (!tokenPayload || !tokenIv) {
-        const allowedRecords = records.filter((r) => !r.isPrivateFromEmergency);
-        const demoPayload = {
-          patientInfo: patient,
-          permittedRecords: allowedRecords,
-          generatedTimestamp: Date.now(),
-        };
-        const tokenObj = await createEmergencyToken(patient.id, allowedRecords.map(r => r.id), demoPayload, 15);
-        tokenPayload = tokenObj.payload;
-        tokenIv = tokenObj.iv;
-        expiresAt = tokenObj.expiresAt;
+        setDoctorTokenState({
+          tokenString: tokenStr,
+          secretKey: keyStr,
+          isDecrypting: false,
+          isExpiredOrRevoked: true,
+          remainingSeconds: 0,
+          decryptedPatient: null,
+          decryptedRecords: null,
+          errorMessage: 'TOKEN NOT FOUND OR EXPIRED: No active emergency token matches the key provided.',
+        });
+        return;
       }
 
       const now = Date.now();
@@ -661,7 +642,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setPatient((prev) => {
       const updated = { ...prev, ...updatedFields };
       addAuditEntry({
-        actorName: updated.fullName,
+        actorName: updated.fullName || 'Patient',
         actorRole: 'Patient',
         action: 'Updated Profile',
         details: `Updated patient profile details (Name: ${updated.fullName}, Age: ${updated.age}, Blood: ${updated.bloodType}).`,
