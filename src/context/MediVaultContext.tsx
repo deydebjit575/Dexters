@@ -107,7 +107,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [activeView, setActiveView] = useState<AppView>('landing');
   const [currentLang, setCurrentLang] = useState<Language>('EN');
 
