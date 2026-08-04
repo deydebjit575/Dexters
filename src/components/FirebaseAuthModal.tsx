@@ -64,42 +64,40 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-slate-900 border border-teal-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-glow-teal relative overflow-hidden space-y-6"
+          className="bg-white border border-cyan-200 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-xl relative overflow-hidden space-y-6"
         >
-          <div className="ambient-glow-teal -top-10 -right-10" />
-
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800 relative z-10">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 relative z-10">
             <div className="flex items-center space-x-2.5">
-              <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+              <div className="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-200 flex items-center justify-center text-cyan-500">
                 <Shield className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Firebase Authentication</h3>
-                <p className="text-[11px] text-slate-400">Encrypted Patient Vault Access</p>
+                <h3 className="text-lg font-bold text-slate-900">Firebase Authentication</h3>
+                <p className="text-[11px] text-slate-500">Encrypted Patient Vault Access</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+              className="p-1.5 rounded-xl bg-slate-100 text-slate-400 hover:text-slate-700"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Switch Tabs */}
-          <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-800 text-xs">
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs">
             <button
               onClick={() => setTab('login')}
               className={`flex-1 py-2 rounded-xl font-bold transition-all flex items-center justify-center space-x-1.5 ${
                 tab === 'login'
-                  ? 'bg-teal-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-cyan-500 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -109,8 +107,8 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
               onClick={() => setTab('register')}
               className={`flex-1 py-2 rounded-xl font-bold transition-all flex items-center justify-center space-x-1.5 ${
                 tab === 'register'
-                  ? 'bg-teal-500 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-cyan-500 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -119,7 +117,7 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-semibold">
               {error}
             </div>
           )}
@@ -128,7 +126,7 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             {tab === 'register' && (
               <div>
-                <label className="block text-slate-300 font-bold mb-1">Full Name</label>
+                <label className="block text-slate-700 font-bold mb-1">Full Name</label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
@@ -137,14 +135,14 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Full Name"
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-cyan-500"
                   />
                 </div>
               </div>
             )}
 
             <div>
-              <label className="block text-slate-300 font-bold mb-1">Email Address</label>
+              <label className="block text-slate-700 font-bold mb-1">Email Address</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
@@ -153,13 +151,13 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="user@example.com"
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-cyan-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-slate-300 font-bold mb-1">Master Vault Password</label>
+              <label className="block text-slate-700 font-bold mb-1">Master Vault Password</label>
               <div className="relative">
                 <Key className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
@@ -167,7 +165,7 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none focus:border-teal-500"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-cyan-500"
                 />
               </div>
             </div>
@@ -175,18 +173,18 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 text-slate-950 font-extrabold text-xs shadow-glow-teal hover:opacity-95 transition-opacity"
+              className="w-full py-3.5 rounded-2xl bg-cyan-500 hover:bg-cyan-600 text-white font-extrabold text-xs shadow-md transition-colors"
             >
               {loading ? 'Authenticating with Firebase...' : tab === 'login' ? 'Login to MediVault' : 'Register Patient Identity'}
             </button>
           </form>
 
           {/* Social Auth */}
-          <div className="pt-2 border-t border-slate-800 space-y-3">
+          <div className="pt-2 border-t border-slate-200 space-y-3">
             <button
               onClick={handleGoogleAuth}
               type="button"
-              className="w-full py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center space-x-2 transition-colors"
+              className="w-full py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-colors shadow-sm"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
