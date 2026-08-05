@@ -26,7 +26,7 @@ import {
   saveUserDataToFirebase,
 } from '../services/firebaseService';
 
-export type AppView = 'landing' | 'patient' | 'access' | 'doctor';
+export type AppView = 'landing' | 'patient' | 'access' | 'doctor' | 'login';
 export type Language = 'EN' | 'HI' | 'ES' | 'FR' | 'DE';
 
 interface MediVaultContextType {
@@ -265,10 +265,15 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const resetToDemoProfile = resetToEmptyProfile;
 
-  // Check URL hash on page load for #view=doctor&token=...&key=...
+  // Check URL hash / path on page load for #view=doctor or #login or /login
   useEffect(() => {
     const handleHashChange = () => {
+      const pathname = window.location.pathname;
       const hash = window.location.hash.substring(1);
+      if (pathname === '/login' || hash === 'login') {
+        setActiveView('login');
+        return;
+      }
       if (hash) {
         const params = new URLSearchParams(hash);
         const view = params.get('view');
@@ -277,6 +282,8 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (view === 'doctor' && token && key) {
           setActiveView('doctor');
           loadDoctorEmergencyToken(token, key);
+        } else if (view === 'login') {
+          setActiveView('login');
         }
       }
     };

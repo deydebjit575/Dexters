@@ -181,7 +181,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              onClick={() => openAuth('login')}
+              onClick={() => setActiveView('login')}
               className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm shadow-sm flex items-center justify-center space-x-2 transition-all"
             >
               <LogIn className="w-5 h-5 text-cyan-600" />
