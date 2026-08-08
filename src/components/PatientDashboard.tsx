@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   UserCheck,
@@ -91,6 +92,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     logoutUser,
     updatePatientProfile,
   } = useMediVault();
+
+  const navigate = useNavigate();
 
   // Sidebar Tabs State
   const [sidebarTab, setSidebarTab] = useState<string>(activeSubTab || 'dashboard');
@@ -352,6 +355,21 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     }
   };
 
+  // Tab → Route map for sidebar navigation
+  const tabRoutes: Record<string, string> = {
+    dashboard: '/dashboard',
+    records: '/medical-records',
+    timeline: '/medical-records/timeline',
+    upload: '/upload-records',
+    access: '/dashboard/access',
+    granular: '/settings/permissions',
+    emergency: '/dashboard/emergency',
+    security: '/dashboard/security',
+    ai: '/dashboard/ai',
+    profile: '/profile',
+    settings: '/settings',
+  };
+
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
     { id: 'records', label: 'Medical Records', icon: FileText },
@@ -392,7 +410,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
               return (
                 <button
                   key={item.id}
-                  onClick={() => setSidebarTab(item.id)}
+                  onClick={() => navigate(tabRoutes[item.id] || '/dashboard')}
                   className={`w-full px-4 py-3 rounded-2xl text-xs font-bold transition-all flex items-center space-x-3 ${
                     isActive
                       ? 'bg-cyan-500 text-white shadow-md'
@@ -577,7 +595,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-slate-900">Recent Prescriptions & Diagnoses</h3>
                   <button
-                    onClick={() => setSidebarTab('records')}
+                    onClick={() => navigate('/medical-records')}
                     className="text-xs text-cyan-600 font-bold hover:underline"
                   >
                     View All ({records.length}) →

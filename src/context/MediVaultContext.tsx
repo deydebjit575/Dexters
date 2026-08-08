@@ -24,9 +24,10 @@ import {
   logoutFirebase,
   fetchUserDataFromFirebase,
   saveUserDataToFirebase,
+  saveUserToRegistry,
 } from '../services/firebaseService';
 
-export type AppView = 'landing' | 'patient' | 'access' | 'doctor' | 'login';
+export type AppView = 'landing' | 'patient' | 'access' | 'doctor' | 'login'; // kept for legacy compatibility
 export type Language = 'EN' | 'HI' | 'ES' | 'FR' | 'DE';
 
 interface MediVaultContextType {
@@ -44,9 +45,9 @@ interface MediVaultContextType {
   trustedRequests: TrustedContactApprovalRequest[];
   activeEmergencyToken: EmergencyToken | null;
   theme: 'dark' | 'light';
-  activeView: AppView;
+  activeView: AppView; // kept for legacy compatibility — use React Router for actual navigation
   currentLang: Language;
-  setActiveView: (view: AppView) => void;
+  setActiveView: (view: AppView) => void; // no-op stub — use useNavigate() in components
   setCurrentLang: (lang: Language) => void;
   toggleTheme: () => void;
   toggleRecordPrivacy: (recordId: string) => void;
@@ -108,6 +109,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
 
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  // activeView is kept as a stub for legacy code — real navigation uses React Router
   const [activeView, setActiveView] = useState<AppView>('landing');
   const [currentLang, setCurrentLang] = useState<Language>('EN');
 
@@ -161,6 +163,16 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           setAccessGrants(dbData.accessGrants);
           setAuditLogs(dbData.auditLogs);
           setGranularPermissions(dbData.granularPermissions);
+          if (dbData.patient.fullName && dbData.patient.fullName.trim() !== '') {
+            const realName = dbData.patient.fullName.trim();
+            setCurrentUser((prev) => {
+              if (!prev || prev.displayName === realName) return prev;
+              const updated = { ...prev, displayName: realName };
+              localStorage.setItem('medivault_firebase_user', JSON.stringify(updated));
+              saveUserToRegistry(updated);
+              return updated;
+            });
+          }
         }
       });
     } else {
@@ -192,6 +204,16 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setAccessGrants(dbData.accessGrants);
       setAuditLogs(dbData.auditLogs);
       setGranularPermissions(dbData.granularPermissions);
+      if (dbData.patient.fullName && dbData.patient.fullName.trim() !== '') {
+        const realName = dbData.patient.fullName.trim();
+        setCurrentUser((prev) => {
+          if (!prev) return prev;
+          const updated = { ...prev, displayName: realName };
+          localStorage.setItem('medivault_firebase_user', JSON.stringify(updated));
+          saveUserToRegistry(updated);
+          return updated;
+        });
+      }
     }
 
     setSyncProgress(90);
@@ -265,25 +287,24 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const resetToDemoProfile = resetToEmptyProfile;
 
-  // Check URL hash / path on page load for #view=doctor or #login or /login
+  // Handle emergency doctor hash links: #view=doctor&token=...&key=...
+  // (Real page routing is handled by React Router in App.tsx)
   useEffect(() => {
     const handleHashChange = () => {
-      const pathname = window.location.pathname;
       const hash = window.location.hash.substring(1);
-      if (pathname === '/login' || hash === 'login') {
-        setActiveView('login');
-        return;
-      }
       if (hash) {
         const params = new URLSearchParams(hash);
         const view = params.get('view');
         const token = params.get('token');
         const key = params.get('key');
         if (view === 'doctor' && token && key) {
-          setActiveView('doctor');
-          loadDoctorEmergencyToken(token, key);
-        } else if (view === 'login') {
-          setActiveView('login');
+          if (window.location.pathname === '/doctor-portal') {
+            // Already on doctor portal — load the token directly
+            loadDoctorEmergencyToken(token, key);
+          } else {
+            // Navigate to doctor portal preserving the hash
+            window.location.href = '/doctor-portal' + window.location.hash;
+          }
         }
       }
     };
@@ -655,6 +676,18 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         details: `Updated patient profile details (Name: ${updated.fullName}, Age: ${updated.age}, Blood: ${updated.bloodType}).`,
         ipAddress: '127.0.0.1 (Local Sovereign Session)',
       });
+
+      if (updated.fullName && updated.fullName.trim() !== '' && currentUser) {
+        const newName = updated.fullName.trim();
+        setCurrentUser((userPrev) => {
+          if (!userPrev) return userPrev;
+          const updatedUser = { ...userPrev, displayName: newName };
+          localStorage.setItem('medivault_firebase_user', JSON.stringify(updatedUser));
+          saveUserToRegistry(updatedUser);
+          return updatedUser;
+        });
+      }
+
       return updated;
     });
   };

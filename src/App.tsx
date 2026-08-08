@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { MediVaultProvider, useMediVault } from './context/MediVaultContext';
 import { Navbar } from './components/Navbar';
 import { LandingPage } from './components/LandingPage';
@@ -6,37 +7,175 @@ import { LoginPage } from './components/LoginPage';
 import { PatientDashboard } from './components/PatientDashboard';
 import { DoctorEmergencyView } from './components/DoctorEmergencyView';
 import { EmergencyTokenModal } from './components/EmergencyTokenModal';
-import { ShieldCheck, HeartPulse, Lock, Github } from 'lucide-react';
+import { ShieldCheck, Lock } from 'lucide-react';
 
-const MainContent: React.FC = () => {
-  const { activeView } = useMediVault();
+// Protected route wrapper — redirects to /login if not authenticated
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser } = useMediVault();
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+const AppLayout: React.FC = () => {
+  const { currentUser } = useMediVault();
+  const location = useLocation();
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+
+  const isLoginPage = location.pathname === '/login';
+  const isDoctorPortal = location.pathname === '/doctor-portal';
 
   return (
     <div className="min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-white bg-[#F8FAFC]">
       <div>
-        {activeView !== 'login' && (
+        {!isLoginPage && (
           <Navbar onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} />
         )}
 
         <main>
-          {activeView === 'landing' && (
-            <LandingPage onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} />
-          )}
+          <Routes>
+            {/* Public routes */}
+            <Route
+              path="/"
+              element={<LandingPage onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} />}
+            />
+            <Route
+              path="/login"
+              element={
+                currentUser ? <Navigate to="/dashboard" replace /> : (
+                  <LoginPage onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} />
+                )
+              }
+            />
+            <Route path="/doctor-portal" element={<DoctorEmergencyView />} />
 
-          {activeView === 'login' && (
-            <LoginPage onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} />
-          )}
+            {/* Protected patient routes — all render PatientDashboard with different tab */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="dashboard"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/medical-records"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="records"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/medical-records/timeline"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="timeline"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/upload-records"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="upload"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="profile"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="settings"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/permissions"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="granular"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/access"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="access"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/emergency"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="emergency"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/security"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="security"
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ai"
+              element={
+                <ProtectedRoute>
+                  <PatientDashboard
+                    onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+                    activeSubTab="ai"
+                  />
+                </ProtectedRoute>
+              }
+            />
 
-          {activeView === 'patient' && (
-            <PatientDashboard onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} activeSubTab="records" />
-          )}
-
-          {activeView === 'access' && (
-            <PatientDashboard onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} activeSubTab="access" />
-          )}
-
-          {activeView === 'doctor' && <DoctorEmergencyView />}
+            {/* Catch-all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
       </div>
 
@@ -46,8 +185,8 @@ const MainContent: React.FC = () => {
         onClose={() => setIsEmergencyModalOpen(false)}
       />
 
-      {/* Footer (Hidden on login page) */}
-      {activeView !== 'login' && (
+      {/* Footer (hidden on login and doctor portal pages) */}
+      {!isLoginPage && !isDoctorPortal && (
         <footer className="border-t border-slate-200/80 bg-white py-8 px-4 sm:px-6 lg:px-8 mt-16 text-xs text-slate-600 shadow-sm">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center space-x-2">
@@ -73,9 +212,11 @@ const MainContent: React.FC = () => {
 
 export function App() {
   return (
-    <MediVaultProvider>
-      <MainContent />
-    </MediVaultProvider>
+    <BrowserRouter>
+      <MediVaultProvider>
+        <AppLayout />
+      </MediVaultProvider>
+    </BrowserRouter>
   );
 }
 

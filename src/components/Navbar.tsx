@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   ShieldCheck,
   Stethoscope,
@@ -16,7 +17,6 @@ import {
   UserPlus,
   RefreshCw,
   LogOut,
-  User,
   Sparkles,
 } from 'lucide-react';
 import { useMediVault } from '../context/MediVaultContext';
@@ -28,19 +28,20 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
   const {
-    activeView,
-    setActiveView,
     theme,
     toggleTheme,
     activeEmergencyToken,
     currentLang,
     setCurrentLang,
     currentUser,
-    isDemoMode,
     isFetchingFirebase,
     fetchCompleteFirebaseData,
     logoutUser,
   } = useMediVault();
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
@@ -50,6 +51,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
     setAuthModalOpen(true);
   };
 
+  const handleLogout = async () => {
+    await logoutUser();
+    navigate('/');
+  };
+
+  // Determine which nav item is active based on current pathname
+  const isActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <>
       <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/90 border-b border-slate-200/80 shadow-sm transition-colors">
@@ -57,8 +69,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
           <div className="flex items-center justify-between h-20">
             
             {/* Logo & Brand */}
-            <div 
-              onClick={() => setActiveView('landing')} 
+            <div
+              onClick={() => navigate('/')}
               className="flex items-center space-x-3 cursor-pointer group"
             >
               <div className="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 via-cyan-500 to-blue-600 p-0.5 shadow-glow-cyan group-hover:scale-105 transition-transform duration-300">
@@ -82,9 +94,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
             {/* Desktop Navigation Links */}
             <nav className="hidden xl:flex items-center space-x-1 bg-slate-100/90 p-1.5 rounded-full border border-slate-200/80">
               <button
-                onClick={() => setActiveView('landing')}
+                onClick={() => navigate('/')}
                 className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
-                  activeView === 'landing'
+                  isActive('/') && location.pathname === '/'
                     ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20 font-bold'
                     : 'text-slate-600 hover:text-cyan-600 hover:bg-slate-200/60'
                 }`}
@@ -92,9 +104,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                 Overview
               </button>
               <button
-                onClick={() => setActiveView('patient')}
+                onClick={() => navigate('/dashboard')}
                 className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
-                  activeView === 'patient'
+                  isActive('/dashboard') || isActive('/medical-records') || isActive('/upload-records') || isActive('/profile') || isActive('/settings')
                     ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20 font-bold'
                     : 'text-slate-600 hover:text-cyan-600 hover:bg-slate-200/60'
                 }`}
@@ -103,9 +115,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                 <span>Patient Dashboard</span>
               </button>
               <button
-                onClick={() => setActiveView('access')}
+                onClick={() => navigate('/dashboard/access')}
                 className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
-                  activeView === 'access'
+                  isActive('/dashboard/access')
                     ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20 font-bold'
                     : 'text-slate-600 hover:text-cyan-600 hover:bg-slate-200/60'
                 }`}
@@ -114,9 +126,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                 <span>Access Control</span>
               </button>
               <button
-                onClick={() => setActiveView('doctor')}
+                onClick={() => navigate('/doctor-portal')}
                 className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
-                  activeView === 'doctor'
+                  isActive('/doctor-portal')
                     ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20 font-bold'
                     : 'text-cyan-700 hover:text-cyan-800 hover:bg-cyan-50'
                 }`}
@@ -167,7 +179,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                       {currentUser.displayName || 'Authenticated User'}
                     </span>
                     <button
-                      onClick={logoutUser}
+                      onClick={handleLogout}
                       className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
                       title="Logout User"
                     >
@@ -178,7 +190,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
               ) : (
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => setActiveView('login')}
+                    onClick={() => navigate('/login')}
                     className="px-3 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 flex items-center space-x-1.5 transition-colors"
                   >
                     <LogIn className="w-3.5 h-3.5 text-cyan-600" />
@@ -250,7 +262,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
             >
               <button
                 onClick={() => {
-                  setActiveView('landing');
+                  navigate('/');
                   setMobileMenuOpen(false);
                 }}
                 className="w-full text-left px-4 py-3 rounded-xl bg-slate-50 text-slate-800 text-xs font-semibold flex items-center space-x-3 hover:bg-cyan-50 hover:text-cyan-600"
@@ -261,7 +273,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
 
               <button
                 onClick={() => {
-                  setActiveView('patient');
+                  navigate('/dashboard');
                   setMobileMenuOpen(false);
                 }}
                 className="w-full text-left px-4 py-3 rounded-xl bg-slate-50 text-slate-800 text-xs font-semibold flex items-center space-x-3 hover:bg-cyan-50 hover:text-cyan-600"
@@ -272,7 +284,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
 
               <button
                 onClick={() => {
-                  setActiveView('doctor');
+                  navigate('/doctor-portal');
                   setMobileMenuOpen(false);
                 }}
                 className="w-full text-left px-4 py-3 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-700 text-xs font-semibold flex items-center space-x-3"
@@ -281,28 +293,41 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                 <span>Emergency Doctor Portal</span>
               </button>
 
-              <div className="grid grid-cols-2 gap-2 pt-2">
+              {currentUser ? (
                 <button
                   onClick={() => {
-                    setActiveView('login');
+                    handleLogout();
                     setMobileMenuOpen(false);
                   }}
-                  className="py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 flex items-center justify-center space-x-1"
+                  className="w-full text-left px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-3"
                 >
-                  <LogIn className="w-3.5 h-3.5 text-cyan-600" />
-                  <span>Login</span>
+                  <LogOut className="w-4 h-4 text-rose-500" />
+                  <span>Logout ({currentUser.displayName})</span>
                 </button>
-                <button
-                  onClick={() => {
-                    openAuth('register');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="py-2.5 rounded-xl bg-cyan-50 border border-cyan-200 text-xs font-bold text-cyan-700 flex items-center justify-center space-x-1"
-                >
-                  <UserPlus className="w-3.5 h-3.5 text-cyan-600" />
-                  <span>Register</span>
-                </button>
-              </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button
+                    onClick={() => {
+                      navigate('/login');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 flex items-center justify-center space-x-1"
+                  >
+                    <LogIn className="w-3.5 h-3.5 text-cyan-600" />
+                    <span>Login</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      openAuth('register');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="py-2.5 rounded-xl bg-cyan-50 border border-cyan-200 text-xs font-bold text-cyan-700 flex items-center justify-center space-x-1"
+                  >
+                    <UserPlus className="w-3.5 h-3.5 text-cyan-600" />
+                    <span>Register</span>
+                  </button>
+                </div>
+              )}
 
               <button
                 onClick={() => {
@@ -324,7 +349,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         initialTab={authTab}
-        onSuccessLogin={() => setActiveView('patient')}
+        onSuccessLogin={() => navigate('/dashboard')}
       />
     </>
   );

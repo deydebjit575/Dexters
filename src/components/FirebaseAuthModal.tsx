@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Lock, Mail, User, Key, X, CheckCircle2, Sparkles, LogIn, UserPlus } from 'lucide-react';
 import { loginWithEmail, registerWithEmail, loginWithGoogle, FirebaseUser } from '../services/firebaseService';
 import { useMediVault } from '../context/MediVaultContext';
+import { useNavigate } from 'react-router-dom';
 
 interface FirebaseAuthModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
   initialTab = 'login',
 }) => {
   const { handleUserLogin } = useMediVault();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<'login' | 'register'>(initialTab);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -41,6 +43,7 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
       setLoading(false);
       await handleUserLogin(user);
       onClose();
+      navigate('/dashboard');
       if (onSuccessLogin) onSuccessLogin();
     } catch (err: any) {
       setLoading(false);
@@ -55,6 +58,7 @@ export const FirebaseAuthModal: React.FC<FirebaseAuthModalProps> = ({
       setLoading(false);
       await handleUserLogin(user);
       onClose();
+      navigate('/dashboard');
       if (onSuccessLogin) onSuccessLogin();
     } catch (err: any) {
       setLoading(false);

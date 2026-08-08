@@ -11,13 +11,15 @@ import {
 } from 'lucide-react';
 import { useMediVault } from '../context/MediVaultContext';
 import { loginWithEmail, loginWithGoogle } from '../services/firebaseService';
+import { useNavigate } from 'react-router-dom';
 
 interface LoginPageProps {
   onOpenEmergencyModal: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onOpenEmergencyModal }) => {
-  const { setActiveView, handleUserLogin } = useMediVault();
+  const { handleUserLogin } = useMediVault();
+  const navigate = useNavigate();
 
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +36,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onOpenEmergencyModal }) =>
       const user = await loginWithEmail(emailOrPhone, password);
       setLoading(false);
       await handleUserLogin(user);
-      setActiveView('patient');
+      navigate('/dashboard');
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'Authentication error. Please check your credentials.');
@@ -48,7 +50,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onOpenEmergencyModal }) =>
       const user = await loginWithGoogle();
       setLoading(false);
       await handleUserLogin(user);
-      setActiveView('patient');
+      navigate('/dashboard');
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'Google Authentication failed.');
@@ -62,8 +64,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onOpenEmergencyModal }) =>
         {/* Top Header & Logo */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <div 
-              onClick={() => setActiveView('landing')} 
+            <div
+              onClick={() => navigate('/')}
               className="flex items-center space-x-3 cursor-pointer group"
             >
               <div className="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 via-cyan-500 to-blue-600 p-0.5 shadow-glow-cyan group-hover:scale-105 transition-transform duration-300">
@@ -86,7 +88,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onOpenEmergencyModal }) =>
           {/* Back to Home Link */}
           <div>
             <button
-              onClick={() => setActiveView('landing')}
+              onClick={() => navigate('/')}
               className="inline-flex items-center space-x-2 text-sm font-semibold text-slate-600 hover:text-cyan-600 transition-colors py-1.5 group"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
