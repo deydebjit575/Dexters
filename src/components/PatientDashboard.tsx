@@ -151,8 +151,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
-  const [uploadDoctor, setUploadDoctor] = useState('Dr. Amit Roy');
-  const [uploadHospital, setUploadHospital] = useState('Apollo Hospital');
+  const [uploadDoctor, setUploadDoctor] = useState('');
+  const [uploadHospital, setUploadHospital] = useState('');
   const [uploadDiagnosis, setUploadDiagnosis] = useState('');
 
   // Add Record Modal
@@ -160,9 +160,9 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<RecordCategory>('Prescription');
   const [newDate, setNewDate] = useState('2026-07-24');
-  const [newDoctor, setNewDoctor] = useState('Dr. Amit Roy');
-  const [newSpecialty, setNewSpecialty] = useState('Endocrinology');
-  const [newHospital, setNewHospital] = useState('Apollo Hospital');
+  const [newDoctor, setNewDoctor] = useState('');
+  const [newSpecialty, setNewSpecialty] = useState('');
+  const [newHospital, setNewHospital] = useState('');
   const [newDiagnosis, setNewDiagnosis] = useState('');
   const [newMedicineName, setNewMedicineName] = useState('');
   const [newDosage, setNewDosage] = useState('');
@@ -259,7 +259,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
       date: newDate,
       diagnosingDoctor: newDoctor,
       doctorSpecialty: newSpecialty || 'General Medicine',
-      hospitalClinic: newHospital || 'Apollo Hospital',
+      hospitalClinic: newHospital || '',
       diagnosisDetails: newDiagnosis || 'Routine clinical follow-up.',
       medicines,
       tags: [newCategory, 'Medical Record'],

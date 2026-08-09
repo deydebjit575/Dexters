@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
   KeyRound,
@@ -39,6 +40,7 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }) => {
   const { setActiveView } = useMediVault();
+  const navigate = useNavigate();
 
   // Auth modal trigger state
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -181,7 +183,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              onClick={() => setActiveView('login')}
+              onClick={() => openAuth('login')}
               className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm shadow-sm flex items-center justify-center space-x-2 transition-all"
             >
               <LogIn className="w-5 h-5 text-cyan-600" />
@@ -192,7 +194,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
-              onClick={() => setActiveView('doctor')}
+              onClick={() => navigate('/doctor-portal')}
               className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-sm shadow-md shadow-cyan-600/20 flex items-center justify-center space-x-2 group transition-all"
             >
               <Stethoscope className="w-5 h-5 text-cyan-200 group-hover:rotate-12 transition-transform" />
@@ -293,7 +295,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
               </div>
               <h4 className="font-bold text-sm text-white">Top Equipment</h4>
               <p className="text-[11px] text-cyan-100">Modern clinical encryption tools & WebCrypto API integration.</p>
-              <button onClick={() => setActiveView('patient')} className="mt-2 px-4 py-1.5 rounded-full bg-white text-cyan-700 font-bold text-xs hover:bg-cyan-50 transition-colors">
+              <button onClick={() => navigate('/dashboard')} className="mt-2 px-4 py-1.5 rounded-full bg-white text-cyan-700 font-bold text-xs hover:bg-cyan-50 transition-colors">
                 Explore Vault
               </button>
             </div>
@@ -315,7 +317,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
               </div>
               <h4 className="font-bold text-sm text-white">Skilled Doctors</h4>
               <p className="text-[11px] text-cyan-100">Read-only emergency clinical portals with self-destruct timers.</p>
-              <button onClick={() => setActiveView('doctor')} className="mt-2 px-4 py-1.5 rounded-full bg-white text-cyan-700 font-bold text-xs hover:bg-cyan-50 transition-colors">
+              <button onClick={() => navigate('/doctor-portal')} className="mt-2 px-4 py-1.5 rounded-full bg-white text-cyan-700 font-bold text-xs hover:bg-cyan-50 transition-colors">
                 Doctor Portal
               </button>
             </div>
@@ -514,7 +516,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
             <div className="flex items-center space-x-1 text-cyan-500">★★★★★</div>
-            <p className="text-xs text-slate-600 italic">"During my emergency visit to Apollo Hospital, the ER doctor scanned my MediVault QR code and immediately saw my severe penicillin allergy. It saved crucial time!"</p>
+            <p className="text-xs text-slate-600 italic">"During my emergency visit to a city hospital, the ER doctor scanned my MediVault QR code and immediately saw my severe penicillin allergy. It saved crucial time!"</p>
             <div className="pt-2 border-t border-slate-200 font-bold text-slate-900 text-xs">
               Sarah Jenkins <span className="text-slate-500 font-normal font-mono">— Patient (32 Yrs)</span>
             </div>
@@ -524,7 +526,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
             <div className="flex items-center space-x-1 text-cyan-500">★★★★★</div>
             <p className="text-xs text-slate-600 italic">"MediVault’s Doctor Emergency Portal is clean, fast, and secure. Having instant access to blood group, active insulin dosage, and chronic conditions is invaluable in trauma care."</p>
             <div className="pt-2 border-t border-slate-200 font-bold text-slate-900 text-xs">
-              Dr. Amit Roy <span className="text-slate-500 font-normal font-mono">— Endocrinologist, Apollo Hospital</span>
+              Dr. Rohan Mehta <span className="text-slate-500 font-normal font-mono">— Endocrinologist, City Medical Center</span>
             </div>
           </div>
 
@@ -660,7 +662,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenEmergencyModal }
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         initialTab={authTab}
-        onSuccessLogin={() => setActiveView('patient')}
+        onSuccessLogin={() => { setAuthModalOpen(false); navigate('/dashboard'); }}
       />
     </div>
   );

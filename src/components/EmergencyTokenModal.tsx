@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   KeyRound,
@@ -26,7 +27,8 @@ interface EmergencyTokenModalProps {
 }
 
 export const EmergencyTokenModal: React.FC<EmergencyTokenModalProps> = ({ isOpen, onClose }) => {
-  const { records, generateEmergencyAccess, setActiveView, activeEmergencyToken } = useMediVault();
+  const { records, generateEmergencyAccess, activeEmergencyToken } = useMediVault();
+  const navigate = useNavigate();
 
   const [duration, setDuration] = useState<number>(60); // Default 1 hour (60 mins)
   const [isGenerating, setIsGenerating] = useState(false);
@@ -68,8 +70,9 @@ export const EmergencyTokenModal: React.FC<EmergencyTokenModalProps> = ({ isOpen
   const handleLaunchDoctorPortal = () => {
     onClose();
     if (shareUrl) {
-      window.location.hash = shareUrl.split('#')[1] || '';
-      setActiveView('doctor');
+      navigate('/doctor-portal' + (shareUrl.includes('#') ? '#' + shareUrl.split('#')[1] : ''));
+    } else {
+      navigate('/doctor-portal');
     }
   };
 
