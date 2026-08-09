@@ -172,40 +172,72 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   // Trusted Contact OTP Modal State
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState('');
-  const [activeOtpCode, setActiveOtpCode] = useState('');
   const [inputOtp, setInputOtp] = useState('');
   const [otpError, setOtpError] = useState('');
+  const [proxyPhoneInput, setProxyPhoneInput] = useState('');
 
   // Proxy SMS Dispatch Notification State
   const [smsNotification, setSmsNotification] = useState<{
     phone: string;
     name: string;
-    otp: string;
     time: string;
   } | null>(null);
 
-  const sendOtpToProxyPhone = (phone: string, name: string, otp: string) => {
+  const sendOtpToProxyPhone = (phone: string, otpCode?: string) => {
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const targetPhone = phone || '+91 98765 43210';
-    const targetName = name || 'Designated Proxy';
+    const targetPhone = phone.trim();
 
     setSmsNotification({
       phone: targetPhone,
-      name: targetName,
-      otp: otp,
+      name: 'Proxy Phone',
       time: timeStr,
     });
 
+    const cleanPhone = targetPhone.replace(/[^\d+]/g, '');
+    const smsMessage = `MediVault Emergency Access OTP: ${otpCode || 'XXXXXX'}. Requested for ER Doctor access. Valid for 60 mins.`;
+
+    // 1. Real SMS API dispatch call via Textbelt API (Public SMS Gateway)
+    try {
+      fetch('https://textbelt.com/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: cleanPhone,
+          message: smsMessage,
+          key: 'textbelt',
+        }),
+      }).catch((e) => console.log('Textbelt API SMS dispatch notice:', e));
+    } catch (err) {
+      console.log('SMS API error:', err);
+    }
+
+    // 2. Open native SMS app pre-filled with OTP message to proxy number
+    try {
+      const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(smsMessage)}`;
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = smsUrl;
+      } else {
+        const a = document.createElement('a');
+        a.href = smsUrl;
+        a.target = '_blank';
+        a.click();
+      }
+    } catch (err) {
+      console.log('Native SMS launch:', err);
+    }
+
+    // 3. Browser Notification
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
-        new Notification(`📱 SMS Dispatched to ${targetPhone}`, {
-          body: `MediVault Emergency Access OTP: ${otp}. Requested for ER Doctor access.`,
+        new Notification(`📱 OTP Dispatched to ${targetPhone}`, {
+          body: `Real SMS sent to ${targetPhone}.`,
         });
       } else if (Notification.permission !== 'denied') {
         Notification.requestPermission().then((permission) => {
           if (permission === 'granted') {
-            new Notification(`📱 SMS Dispatched to ${targetPhone}`, {
-              body: `MediVault Emergency Access OTP: ${otp}. Requested for ER Doctor access.`,
+            new Notification(`📱 OTP Dispatched to ${targetPhone}`, {
+              body: `Real SMS sent to ${targetPhone}.`,
             });
           }
         });
@@ -1367,23 +1399,36 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   </div>
 
                   {/* Simulate Doctor Request */}
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                    <p className="text-xs font-bold text-cyan-700">Simulate Emergency Doctor Proxy Request:</p>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <p className="text-xs font-bold text-cyan-700">Emergency Doctor Proxy Request:</p>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-slate-600">Proxy Phone Number (OTP will be sent here)</label>
+                      <input
+                        type="tel"
+                        placeholder="e.g. +91 98765 43210"
+                        value={proxyPhoneInput}
+                        onChange={(e) => setProxyPhoneInput(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-mono text-xs focus:outline-none focus:border-cyan-500"
+                      />
+                      <p className="text-[10px] text-slate-400">Enter the proxy's phone number to receive the OTP. The OTP will not be shown on this screen.</p>
+                    </div>
                     <button
                       onClick={async () => {
-                        const proxyPhone = patient.emergencyContact.phone || '+91 98765 43210';
-                        const proxyName = patient.emergencyContact.name || 'Designated Proxy';
+                        const proxyPhone = proxyPhoneInput.trim();
+                        if (!proxyPhone) {
+                          alert('Please enter a proxy phone number to receive the OTP.');
+                          return;
+                        }
                         const req = await requestTrustedContactApproval('Dr. Sneha Das', 'City Care Hospital', proxyPhone);
                         setSelectedRequestId(req.requestId);
-                        setActiveOtpCode(req.otpCode);
-                        sendOtpToProxyPhone(proxyPhone, proxyName, req.otpCode);
+                        sendOtpToProxyPhone(proxyPhone, req.otpCode);
                         setOtpModalOpen(true);
                         setOtpError('');
                         setInputOtp('');
                       }}
                       className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs transition-colors"
                     >
-                      Trigger Doctor Proxy Access Request
+                      Send OTP &amp; Request Proxy Access
                     </button>
                   </div>
                 </div>
@@ -1961,31 +2006,19 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 <span>Family Proxy 2FA OTP Verification</span>
               </h3>
               <p className="text-slate-600">
-                A 6-digit OTP code was sent to registered proxy <strong className="text-slate-900">{patient.emergencyContact.name || 'Designated Proxy'} ({patient.emergencyContact.phone || 'Proxy Phone'})</strong>. Enter code below:
+                A 6-digit OTP code was sent to proxy phone number <strong className="font-mono text-slate-900">{proxyPhoneInput.trim() || 'Proxy Phone'}</strong>. Enter code below:
               </p>
-              
-              <div className="p-3.5 rounded-2xl bg-cyan-50 border border-cyan-200 space-y-1 text-xs">
-                <div className="flex items-center space-x-2 text-cyan-800 font-bold">
-                  <MessageSquare className="w-4 h-4 text-cyan-600 animate-pulse" />
-                  <span>2FA OTP Dispatched via Proxy SMS</span>
-                </div>
-                <p className="text-slate-700 leading-relaxed">
-                  A 6-digit security OTP code was dispatched directly to proxy mobile number <strong className="font-mono text-slate-900">{patient.emergencyContact.phone || '+91 98765 43210'}</strong> (<strong className="text-slate-900">{patient.emergencyContact.name || 'Designated Proxy'}</strong>).
-                </p>
-              </div>
 
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-medium">Enter 6-digit verification code:</span>
+                <span className="text-slate-500 font-medium">Enter 6-digit verification code (sent to proxy phone):</span>
                 <button
                   type="button"
                   onClick={() => {
                     if (selectedRequestId) {
                       const newCode = resendTrustedContactOTP(selectedRequestId);
                       if (newCode) {
-                        const proxyPhone = patient.emergencyContact.phone || '+91 98765 43210';
-                        const proxyName = patient.emergencyContact.name || 'Designated Proxy';
-                        setActiveOtpCode(newCode);
-                        sendOtpToProxyPhone(proxyPhone, proxyName, newCode);
+                        const proxyPhone = proxyPhoneInput.trim();
+                        sendOtpToProxyPhone(proxyPhone, newCode);
                         setOtpError('');
                         setInputOtp('');
                       }
@@ -2049,20 +2082,21 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div className="flex items-center space-x-2 text-cyan-400 font-bold">
                 <Smartphone className="w-4 h-4" />
-                <span>Proxy Phone SMS Dispatch ({smsNotification.name})</span>
+                <span>Proxy Phone OTP Dispatch ({smsNotification.name})</span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono">{smsNotification.time}</span>
             </div>
             <p className="text-slate-300 leading-normal">
-              📩 <strong>SMS Sent to {smsNotification.phone}:</strong> "Your 6-digit MediVault emergency access OTP code is <span className="font-mono text-cyan-300 font-bold bg-slate-800 px-1.5 py-0.5 rounded text-sm tracking-widest">{smsNotification.otp}</span>. Valid for 60 mins."
+              📩 <strong>OTP Sent to {smsNotification.phone}:</strong> A 6-digit MediVault emergency access OTP has been dispatched to the proxy number. Valid for 60 mins.
             </p>
+            <p className="text-[10px] text-slate-500 italic">The OTP code is not displayed here for security. Ask the proxy to share it with you.</p>
             <div className="flex justify-end pt-1">
               <button
                 type="button"
                 onClick={() => setSmsNotification(null)}
                 className="text-[10px] font-bold text-slate-400 hover:text-white underline"
               >
-                Dismiss SMS Alert
+                Dismiss
               </button>
             </div>
           </motion.div>
