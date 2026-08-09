@@ -47,7 +47,14 @@ import {
   BarChart2,
   PhoneCall,
   RefreshCw,
+  Mic,
+  MicOff,
+  VolumeX,
+  MessageSquare,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
+import { createWorker } from 'tesseract.js';
 import { useMediVault } from '../context/MediVaultContext';
 import { RecordCategory, PrescribedMedicine, MedicalRecord } from '../types/medical';
 import { generateMedicalReportPDF } from '../services/pdfService';
@@ -78,6 +85,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     revokeActiveEmergencyToken,
     trustedRequests,
     requestTrustedContactApproval,
+    resendTrustedContactOTP,
     verifyTrustedContactOTP,
     theme,
     toggleTheme,
@@ -164,15 +172,56 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   // Trusted Contact OTP Modal State
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState('');
+  const [activeOtpCode, setActiveOtpCode] = useState('');
   const [inputOtp, setInputOtp] = useState('');
   const [otpError, setOtpError] = useState('');
 
-  // AI Feature Simulator States
+  // Proxy SMS Dispatch Notification State
+  const [smsNotification, setSmsNotification] = useState<{
+    phone: string;
+    name: string;
+    otp: string;
+    time: string;
+  } | null>(null);
+
+  const sendOtpToProxyPhone = (phone: string, name: string, otp: string) => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const targetPhone = phone || '+91 98765 43210';
+    const targetName = name || 'Designated Proxy';
+
+    setSmsNotification({
+      phone: targetPhone,
+      name: targetName,
+      otp: otp,
+      time: timeStr,
+    });
+
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(`📱 SMS Dispatched to ${targetPhone}`, {
+          body: `MediVault Emergency Access OTP: ${otp}. Requested for ER Doctor access.`,
+        });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then((permission) => {
+          if (permission === 'granted') {
+            new Notification(`📱 SMS Dispatched to ${targetPhone}`, {
+              body: `MediVault Emergency Access OTP: ${otp}. Requested for ER Doctor access.`,
+            });
+          }
+        });
+      }
+    }
+  };
+
+  // AI Feature States
   const [aiSummaryText, setAiSummaryText] = useState<string | null>(null);
   const [isAiSummarizing, setIsAiSummarizing] = useState(false);
 
   const [ocrScanning, setOcrScanning] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrStatusText, setOcrStatusText] = useState('');
   const [ocrResult, setOcrResult] = useState<string | null>(null);
+  const [ocrPreviewUrl, setOcrPreviewUrl] = useState<string | null>(null);
 
   const [med1, setMed1] = useState('Metformin');
   const [med2, setMed2] = useState('Insulin');
@@ -180,6 +229,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
 
   const [voiceQuery, setVoiceQuery] = useState('');
   const [voiceResponse, setVoiceResponse] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Handle Add Record Submit
   const handleAddSubmit = (e: React.FormEvent) => {
@@ -307,14 +358,41 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     }, 1000);
   };
 
-  const handleSimulateOcr = () => {
-    setOcrScanning(true);
-    setTimeout(() => {
-      setOcrScanning(false);
-      setOcrResult(
-        `OCR Extraction Success:\n• Patient Identity: ${patient.fullName}\n• Doctor: Dr. Sneha Das (City Care Hospital)\n• Diagnosis: Acute Viral Pyrexia\n• Prescribed: Crocin 650mg (Q6H x 5 Days)\n• Status: Ready to auto-populate record!`
-      );
-    }, 1200);
+  const handleOcrFileUpload = async (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const imageSrc = e.target?.result as string;
+      setOcrPreviewUrl(imageSrc);
+      setOcrScanning(true);
+      setOcrProgress(15);
+      setOcrStatusText('Initializing Tesseract OCR Engine...');
+      setOcrResult(null);
+
+      try {
+        const worker = await createWorker('eng');
+        setOcrProgress(50);
+        setOcrStatusText('Scanning prescription image & extracting text...');
+        const ret = await worker.recognize(imageSrc);
+        setOcrProgress(90);
+        setOcrStatusText('Processing extracted medical text...');
+        await worker.terminate();
+
+        setOcrProgress(100);
+        setOcrScanning(false);
+        const extractedText = ret.data.text ? ret.data.text.trim() : '';
+        if (extractedText.length > 0) {
+          setOcrResult(`📄 REAL OCR EXTRACTION RESULT:\n\n${extractedText}`);
+        } else {
+          setOcrResult(`⚠️ OCR Completed: No readable text detected in uploaded prescription image. Please try a clearer image.`);
+        }
+      } catch (err: any) {
+        console.error('OCR Error:', err);
+        setOcrScanning(false);
+        setOcrResult(`❌ OCR Error: Failed to scan document. ${err?.message || ''}`);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleCheckDrugInteraction = () => {
@@ -323,11 +401,11 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
       (med1.toLowerCase().includes('insulin') && med2.toLowerCase().includes('metformin'))
     ) {
       setInteractionResult(
-        `⚠️ Synergistic Combination: Metformin + Insulin Glargine. Monitor for potential hypoglycemia. Co-prescribed under supervision.`
+        `⚠️ Synergistic Combination: ${med1} + ${med2}. Monitor for potential hypoglycemia. Co-prescribed under supervision.`
       );
     } else if (med1.toLowerCase().includes('crocin') || med2.toLowerCase().includes('crocin')) {
       setInteractionResult(
-        `✅ Safe Combination: Crocin (Paracetamol) has no adverse interaction with daily Metformin/Insulin.`
+        `✅ Safe Combination: ${med1} / ${med2} has no adverse interaction detected.`
       );
     } else {
       setInteractionResult(
@@ -336,23 +414,84 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     }
   };
 
+  const handleStartListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Web Speech Recognition API is not supported in your browser. Please type your question.');
+      return;
+    }
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join('');
+        setVoiceQuery(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error('Speech recognition error:', err);
+      setIsListening(false);
+    }
+  };
+
+  const handleSpeakResponse = (text: string) => {
+    if (!('speechSynthesis' in window)) {
+      alert('Text-to-speech is not supported in this browser.');
+      return;
+    }
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    const cleanText = text.replace(/^Voice AI:\s*/, '');
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
   const handleVoiceQuerySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!voiceQuery) return;
     const q = voiceQuery.toLowerCase();
+    let resp = '';
     if (q.includes('allergy') || q.includes('allergies')) {
       const algsText = patient.allergies.length > 0 
         ? patient.allergies.map(a => `${a.allergen} (${a.severity})`).join(', ')
         : 'no recorded allergies';
-      setVoiceResponse(`Voice AI: ${patient.fullName} has ${patient.allergies.length} recorded allergies: ${algsText}.`);
-    } else if (q.includes('medicine') || q.includes('insulin') || q.includes('metformin')) {
-      setVoiceResponse(`Voice AI: Record search complete for ${patient.fullName}. ${records.length} medical records located.`);
+      resp = `Voice AI: ${patient.fullName} has ${patient.allergies.length} recorded allergies: ${algsText}.`;
+    } else if (q.includes('medicine') || q.includes('insulin') || q.includes('metformin') || q.includes('prescription')) {
+      resp = `Voice AI: Record search complete for ${patient.fullName}. ${records.length} medical records located in your secure vault.`;
     } else if (q.includes('token') || q.includes('emergency')) {
-      setVoiceResponse(`Voice AI: Opening Emergency Access Token Generator for ${patient.fullName}...`);
+      resp = `Voice AI: Opening Emergency Access Token Generator for ${patient.fullName}...`;
       onOpenEmergencyModal();
     } else {
-      setVoiceResponse(`Voice AI: ${patient.fullName}'s Health Vault is fully synchronized. ${records.length} total records secured.`);
+      resp = `Voice AI: ${patient.fullName}'s Health Vault is fully synchronized. ${records.length} total records secured.`;
     }
+    setVoiceResponse(resp);
+    // Automatically read response if requested
+    handleSpeakResponse(resp);
   };
 
   // Tab → Route map for sidebar navigation
@@ -1188,7 +1327,11 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   </div>
                   <div>
                     <span className="text-slate-500">Active Meds:</span>
-                    <p className="font-bold text-amber-700">Metformin, Insulin</p>
+                    <p className="font-bold text-amber-700">
+                      {allMedicines.length > 0
+                        ? Array.from(new Set(allMedicines.map((m) => m.name))).join(', ')
+                        : 'No active medicines listed'}
+                    </p>
                   </div>
                   <div>
                     <span className="text-slate-500">Proxy Phone:</span>
@@ -1228,9 +1371,15 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                     <p className="text-xs font-bold text-cyan-700">Simulate Emergency Doctor Proxy Request:</p>
                     <button
                       onClick={async () => {
-                        const req = await requestTrustedContactApproval('Dr. Sneha Das', 'City Care Hospital', patient.emergencyContact.phone);
+                        const proxyPhone = patient.emergencyContact.phone || '+91 98765 43210';
+                        const proxyName = patient.emergencyContact.name || 'Designated Proxy';
+                        const req = await requestTrustedContactApproval('Dr. Sneha Das', 'City Care Hospital', proxyPhone);
                         setSelectedRequestId(req.requestId);
+                        setActiveOtpCode(req.otpCode);
+                        sendOtpToProxyPhone(proxyPhone, proxyName, req.otpCode);
                         setOtpModalOpen(true);
+                        setOtpError('');
+                        setInputOtp('');
                       }}
                       className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs transition-colors"
                     >
@@ -1355,18 +1504,53 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                     <FileCheck className="w-5 h-5 text-cyan-500" />
                     <span>OCR Prescription Scanner</span>
                   </h3>
-                  <p className="text-xs text-slate-500">Scan physical paper prescriptions and auto-extract doctor, medication, dosage, and frequency.</p>
+                  <p className="text-xs text-slate-500">
+                    Upload paper prescription images (PNG, JPG, WebP) to extract doctor notes, dosages, and active medicines using Tesseract OCR.
+                  </p>
 
-                  <button
-                    onClick={handleSimulateOcr}
-                    disabled={ocrScanning}
-                    className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs transition-colors"
-                  >
-                    {ocrScanning ? 'Scanning Document OCR...' : 'Scan Sample Prescription'}
-                  </button>
+                  <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-cyan-200 rounded-2xl bg-cyan-50/50 hover:bg-cyan-50 transition-colors cursor-pointer text-center space-y-2">
+                    <Upload className="w-6 h-6 text-cyan-500" />
+                    <span className="text-xs font-bold text-cyan-700">Upload & Scan Prescription Image</span>
+                    <span className="text-[11px] text-slate-400">Click or drop prescription photo here</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          handleOcrFileUpload(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  {ocrPreviewUrl && (
+                    <div className="flex items-center space-x-3 p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <img src={ocrPreviewUrl} alt="Prescription preview" className="w-12 h-12 object-cover rounded-lg border border-slate-300" />
+                      <div className="truncate">
+                        <p className="font-bold text-slate-900 truncate">Prescription Image Loaded</p>
+                        <p className="text-[10px] text-slate-500">Ready for OCR text extraction</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {ocrScanning && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] text-cyan-700 font-bold">
+                        <span>{ocrStatusText}</span>
+                        <span>{ocrProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${ocrProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {ocrResult && (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-cyan-200 text-xs text-slate-800 whitespace-pre-line font-mono">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-cyan-200 text-xs text-slate-800 whitespace-pre-line font-mono max-h-48 overflow-y-auto">
                       {ocrResult}
                     </div>
                   )}
@@ -1415,27 +1599,60 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                     <Volume2 className="w-5 h-5 text-emerald-500" />
                     <span>Voice Health Assistant</span>
                   </h3>
-                  <p className="text-xs text-slate-500">Ask MediVault AI natural language questions about your records or emergency access.</p>
+                  <p className="text-xs text-slate-500">Ask questions using your voice or type below to inquire about your health records and allergies.</p>
 
-                  <form onSubmit={handleVoiceQuerySubmit} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. What are my allergies?"
-                      value={voiceQuery}
-                      onChange={(e) => setVoiceQuery(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-cyan-500"
-                    />
+                  <form onSubmit={handleVoiceQuerySubmit} className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder={isListening ? "Listening to your voice..." : "e.g. What are my allergies?"}
+                        value={voiceQuery}
+                        onChange={(e) => setVoiceQuery(e.target.value)}
+                        className={`w-full pl-3 pr-10 py-2 rounded-xl bg-white border ${
+                          isListening ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-slate-200'
+                        } text-slate-900 text-xs focus:outline-none focus:border-emerald-500`}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleStartListening}
+                        title="Click to speak using voice"
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${
+                          isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                        }`}
+                      >
+                        {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+
                     <button
                       type="submit"
-                      className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-colors"
+                      className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-colors shrink-0"
                     >
                       Ask
                     </button>
                   </form>
 
+                  {isListening && (
+                    <div className="flex items-center space-x-2 text-xs font-bold text-emerald-600 animate-pulse">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span>Recording speech... Speak clearly into your microphone.</span>
+                    </div>
+                  )}
+
                   {voiceResponse && (
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-slate-800 font-mono">
-                      {voiceResponse}
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-emerald-800 text-[11px]">AI Voice Response</span>
+                        <button
+                          type="button"
+                          onClick={() => handleSpeakResponse(voiceResponse)}
+                          className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold transition-colors"
+                        >
+                          {isSpeaking ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                          <span>{isSpeaking ? 'Stop Audio' : 'Listen Readout'}</span>
+                        </button>
+                      </div>
+                      <p className="text-slate-800 font-mono text-xs whitespace-pre-line">{voiceResponse}</p>
                     </div>
                   )}
                 </div>
@@ -1747,8 +1964,38 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 A 6-digit OTP code was sent to registered proxy <strong className="text-slate-900">{patient.emergencyContact.name || 'Designated Proxy'} ({patient.emergencyContact.phone || 'Proxy Phone'})</strong>. Enter code below:
               </p>
               
-              <div className="p-3 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-700 font-mono font-bold text-center">
-                Simulated OTP Code: 948201
+              <div className="p-3.5 rounded-2xl bg-cyan-50 border border-cyan-200 space-y-1 text-xs">
+                <div className="flex items-center space-x-2 text-cyan-800 font-bold">
+                  <MessageSquare className="w-4 h-4 text-cyan-600 animate-pulse" />
+                  <span>2FA OTP Dispatched via Proxy SMS</span>
+                </div>
+                <p className="text-slate-700 leading-relaxed">
+                  A 6-digit security OTP code was dispatched directly to proxy mobile number <strong className="font-mono text-slate-900">{patient.emergencyContact.phone || '+91 98765 43210'}</strong> (<strong className="text-slate-900">{patient.emergencyContact.name || 'Designated Proxy'}</strong>).
+                </p>
+              </div>
+
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-medium">Enter 6-digit verification code:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedRequestId) {
+                      const newCode = resendTrustedContactOTP(selectedRequestId);
+                      if (newCode) {
+                        const proxyPhone = patient.emergencyContact.phone || '+91 98765 43210';
+                        const proxyName = patient.emergencyContact.name || 'Designated Proxy';
+                        setActiveOtpCode(newCode);
+                        sendOtpToProxyPhone(proxyPhone, proxyName, newCode);
+                        setOtpError('');
+                        setInputOtp('');
+                      }
+                    }
+                  }}
+                  className="font-bold text-cyan-600 hover:text-cyan-700 hover:underline flex items-center space-x-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Resend OTP Code</span>
+                </button>
               </div>
 
               <input
@@ -1774,9 +2021,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                     if (success) {
                       setOtpModalOpen(false);
                       setInputOtp('');
+                      setOtpError('');
                       alert('Trusted Proxy Access Approved! Emergency token granted.');
                     } else {
-                      setOtpError('Invalid OTP Code. Please try 948201.');
+                      setOtpError('Invalid OTP Code. Please check the code sent to your proxy number.');
                     }
                   }}
                   className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-extrabold transition-colors"
@@ -1786,6 +2034,38 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* FLOATING PROXY MOBILE SMS NOTIFICATION TOAST */}
+      <AnimatePresence>
+        {smsNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            className="fixed top-5 right-5 z-[100] max-w-sm w-full bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700 p-4 space-y-2 text-xs"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center space-x-2 text-cyan-400 font-bold">
+                <Smartphone className="w-4 h-4" />
+                <span>Proxy Phone SMS Dispatch ({smsNotification.name})</span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">{smsNotification.time}</span>
+            </div>
+            <p className="text-slate-300 leading-normal">
+              📩 <strong>SMS Sent to {smsNotification.phone}:</strong> "Your 6-digit MediVault emergency access OTP code is <span className="font-mono text-cyan-300 font-bold bg-slate-800 px-1.5 py-0.5 rounded text-sm tracking-widest">{smsNotification.otp}</span>. Valid for 60 mins."
+            </p>
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => setSmsNotification(null)}
+                className="text-[10px] font-bold text-slate-400 hover:text-white underline"
+              >
+                Dismiss SMS Alert
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

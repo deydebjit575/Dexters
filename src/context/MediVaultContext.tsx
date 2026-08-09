@@ -62,6 +62,7 @@ interface MediVaultContextType {
     hospital: string,
     trustedContactPhone: string
   ) => Promise<TrustedContactApprovalRequest>;
+  resendTrustedContactOTP: (requestId: string) => string | null;
   verifyTrustedContactOTP: (requestId: string, otp: string) => boolean;
   handleUserLogin: (user: FirebaseUser) => Promise<void>;
   fetchCompleteFirebaseData: () => Promise<void>;
@@ -514,6 +515,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     hospital: string,
     trustedContactPhone: string
   ): Promise<TrustedContactApprovalRequest> => {
+    const dynamicOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const req: TrustedContactApprovalRequest = {
       requestId: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
       doctorName,
@@ -521,11 +523,26 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       requestTimestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
       trustedContactPhone,
       status: 'pending',
-      otpCode: '948201',
+      otpCode: dynamicOtp,
       durationMinutes: 60,
     };
     setTrustedRequests((prev) => [req, ...prev]);
     return req;
+  };
+
+  const resendTrustedContactOTP = (requestId: string): string | null => {
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    let updatedCode: string | null = null;
+    setTrustedRequests((prev) =>
+      prev.map((req) => {
+        if (req.requestId === requestId) {
+          updatedCode = newOtp;
+          return { ...req, otpCode: newOtp, status: 'pending' as const };
+        }
+        return req;
+      })
+    );
+    return updatedCode;
   };
 
   const verifyTrustedContactOTP = (requestId: string, otp: string): boolean => {
@@ -722,6 +739,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         generateEmergencyAccess,
         revokeActiveEmergencyToken,
         requestTrustedContactApproval,
+        resendTrustedContactOTP,
         verifyTrustedContactOTP,
         handleUserLogin,
         fetchCompleteFirebaseData,
