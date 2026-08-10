@@ -176,73 +176,51 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   const [otpError, setOtpError] = useState('');
   const [proxyPhoneInput, setProxyPhoneInput] = useState('');
 
-  // Proxy SMS Dispatch Notification State
-  const [smsNotification, setSmsNotification] = useState<{
-    phone: string;
-    name: string;
-    time: string;
-  } | null>(null);
-
-  const sendOtpToProxyPhone = (phone: string, otpCode?: string) => {
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const sendOtpToProxyPhone = async (phone: string, otpCode?: string) => {
     const targetPhone = phone.trim();
+    
+    // Format phone number to E.164 (+91 for 10-digit Indian numbers)
+    let cleanPhone = targetPhone.replace(/[^\d+]/g, '');
+    if (!cleanPhone.startsWith('+')) {
+      if (cleanPhone.length === 10) {
+        cleanPhone = '+91' + cleanPhone;
+      } else {
+        cleanPhone = '+' + cleanPhone;
+      }
+    }
 
-    setSmsNotification({
-      phone: targetPhone,
-      name: 'Proxy Phone',
-      time: timeStr,
-    });
-
-    const cleanPhone = targetPhone.replace(/[^\d+]/g, '');
-    const smsMessage = `MediVault Emergency Access OTP: ${otpCode || 'XXXXXX'}. Requested for ER Doctor access. Valid for 60 mins.`;
-
-    // 1. Real SMS API dispatch call via Textbelt API (Public SMS Gateway)
+    // 1. Call server-side Node endpoint to dispatch real SMS (bypasses browser CORS)
     try {
-      fetch('https://textbelt.com/text', {
+      await fetch('/api/send-sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: cleanPhone,
-          message: smsMessage,
-          key: 'textbelt',
+          otpCode: otpCode,
         }),
-      }).catch((e) => console.log('Textbelt API SMS dispatch notice:', e));
+      });
     } catch (err) {
-      console.log('SMS API error:', err);
+      console.log('Server SMS Dispatch API Error:', err);
     }
 
-    // 2. Open native SMS app pre-filled with OTP message to proxy number
+    // 2. Audio Chime Feedback for Dispatch
     try {
-      const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(smsMessage)}`;
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isMobile) {
-        window.location.href = smsUrl;
-      } else {
-        const a = document.createElement('a');
-        a.href = smsUrl;
-        a.target = '_blank';
-        a.click();
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const audioCtx = new AudioCtx();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
       }
-    } catch (err) {
-      console.log('Native SMS launch:', err);
-    }
-
-    // 3. Browser Notification
-    if ('Notification' in window) {
-      if (Notification.permission === 'granted') {
-        new Notification(`📱 OTP Dispatched to ${targetPhone}`, {
-          body: `Real SMS sent to ${targetPhone}.`,
-        });
-      } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then((permission) => {
-          if (permission === 'granted') {
-            new Notification(`📱 OTP Dispatched to ${targetPhone}`, {
-              body: `Real SMS sent to ${targetPhone}.`,
-            });
-          }
-        });
-      }
-    }
+    } catch (e) {}
   };
 
   // AI Feature States
@@ -1383,19 +1361,54 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 </p>
 
                 <div className="space-y-3 pt-2">
-                  <h4 className="font-bold text-slate-700 text-xs">Registered Trusted Contacts:</h4>
+                  <h4 className="font-bold text-slate-700 text-xs">Registered Proxy Numbers:</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {patient.trustedContacts.map((contact) => (
-                      <div key={contact.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-slate-900">{contact.name} ({contact.relationship})</p>
-                          <p className="text-[11px] text-slate-500">{contact.phone}</p>
-                        </div>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                          Proxy Active
-                        </span>
-                      </div>
-                    ))}
+                    {(() => {
+                      const registeredProxies = [
+                        ...(patient.emergencyContact?.phone ? [{
+                          id: patient.emergencyContact.id || 'primary-emergency-proxy',
+                          name: patient.emergencyContact.name || 'Primary Contact',
+                          relationship: patient.emergencyContact.relationship || 'Emergency Proxy',
+                          phone: patient.emergencyContact.phone,
+                          isPrimary: true
+                        }] : []),
+                        ...(patient.trustedContacts || [])
+                      ];
+
+                      if (registeredProxies.length === 0) {
+                        return (
+                          <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-700 col-span-2">
+                            No registered family proxy numbers found. Enter a phone number below to send OTP.
+                          </div>
+                        );
+                      }
+
+                      return registeredProxies.map((contact) => {
+                        const isSelected = proxyPhoneInput.trim() === contact.phone.trim();
+                        return (
+                          <button
+                            key={contact.id}
+                            type="button"
+                            onClick={() => setProxyPhoneInput(contact.phone)}
+                            className={`p-3 rounded-2xl border text-xs text-left flex items-center justify-between transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-cyan-50 border-cyan-400 ring-2 ring-cyan-400/30'
+                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <div>
+                              <p className="font-bold text-slate-900">{contact.name} ({contact.relationship})</p>
+                              <p className="text-[11px] font-mono text-slate-600">{contact.phone}</p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isSelected ? 'bg-cyan-600 text-white' : 'bg-emerald-100 text-emerald-700'
+                            }`}>
+                              {isSelected ? 'Selected' : 'Proxy Active'}
+                            </span>
+                          </button>
+                        );
+                      });
+                    })()}
                   </div>
 
                   {/* Simulate Doctor Request */}
@@ -1410,23 +1423,26 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                         onChange={(e) => setProxyPhoneInput(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 font-mono text-xs focus:outline-none focus:border-cyan-500"
                       />
-                      <p className="text-[10px] text-slate-400">Enter the proxy's phone number to receive the OTP. The OTP will not be shown on this screen.</p>
+                      <p className="text-[10px] text-slate-400">Select a registered proxy contact above or enter the phone number to receive the OTP.</p>
                     </div>
                     <button
                       onClick={async () => {
-                        const proxyPhone = proxyPhoneInput.trim();
-                        if (!proxyPhone) {
-                          alert('Please enter a proxy phone number to receive the OTP.');
+                        const targetNumber = proxyPhoneInput.trim() || patient.emergencyContact?.phone || '';
+                        if (!targetNumber) {
+                          alert('Please select or enter a proxy phone number to receive the OTP.');
                           return;
                         }
-                        const req = await requestTrustedContactApproval('Dr. Sneha Das', 'City Care Hospital', proxyPhone);
+                        if (!proxyPhoneInput.trim()) {
+                          setProxyPhoneInput(targetNumber);
+                        }
+                        const req = await requestTrustedContactApproval('Dr. Sneha Das', 'City Care Hospital', targetNumber);
                         setSelectedRequestId(req.requestId);
-                        sendOtpToProxyPhone(proxyPhone, req.otpCode);
+                        sendOtpToProxyPhone(targetNumber, req.otpCode);
                         setOtpModalOpen(true);
                         setOtpError('');
                         setInputOtp('');
                       }}
-                      className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs transition-colors"
+                      className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs transition-colors shadow-sm active:scale-95"
                     >
                       Send OTP &amp; Request Proxy Access
                     </button>
@@ -2070,38 +2086,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
         )}
       </AnimatePresence>
 
-      {/* FLOATING PROXY MOBILE SMS NOTIFICATION TOAST */}
-      <AnimatePresence>
-        {smsNotification && (
-          <motion.div
-            initial={{ opacity: 0, y: -40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            className="fixed top-5 right-5 z-[100] max-w-sm w-full bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700 p-4 space-y-2 text-xs"
-          >
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="flex items-center space-x-2 text-cyan-400 font-bold">
-                <Smartphone className="w-4 h-4" />
-                <span>Proxy Phone OTP Dispatch ({smsNotification.name})</span>
-              </div>
-              <span className="text-[10px] text-slate-400 font-mono">{smsNotification.time}</span>
-            </div>
-            <p className="text-slate-300 leading-normal">
-              📩 <strong>OTP Sent to {smsNotification.phone}:</strong> A 6-digit MediVault emergency access OTP has been dispatched to the proxy number. Valid for 60 mins.
-            </p>
-            <p className="text-[10px] text-slate-500 italic">The OTP code is not displayed here for security. Ask the proxy to share it with you.</p>
-            <div className="flex justify-end pt-1">
-              <button
-                type="button"
-                onClick={() => setSmsNotification(null)}
-                className="text-[10px] font-bold text-slate-400 hover:text-white underline"
-              >
-                Dismiss
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       {/* ADD NEW MEDICAL RECORD MODAL */}
       <AnimatePresence>
