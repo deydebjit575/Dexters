@@ -12,11 +12,11 @@ import {
   Heart,
   Droplets,
   Wind,
-  Shield,
-  Smile,
-  RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 import { useEnergyMode } from '../context/EnergyModeContext';
+
+type BreathingPhase = 'breathe_in' | 'hold' | 'breathe_out';
 
 export const ThreeMinuteRecoveryPlayer: React.FC = () => {
   const {
@@ -34,13 +34,17 @@ export const ThreeMinuteRecoveryPlayer: React.FC = () => {
   const [isFinished, setIsFinished] = useState(false);
   const [postRating, setPostRating] = useState<number | null>(null);
 
+  // Breathing Phase State (4s In -> 4s Hold -> 6s Out = 14s total cycle)
+  const [breathingPhase, setBreathingPhase] = useState<BreathingPhase>('breathe_in');
+  const [phaseSeconds, setPhaseSeconds] = useState(0);
+
   const planSteps =
     recoveryPlan.length >= 3
       ? recoveryPlan
       : [
           {
-            title: 'Slow Breathing Decompression',
-            description: 'Breathe in slowly for 4s, hold for 4s, and exhale for 6s.',
+            title: '3-Min Guided Decompression Breathing',
+            description: 'Inhale for 4s, hold gently for 4s, and exhale for 6s.',
             duration_seconds: 60,
             type: 'breathing' as const,
           },
@@ -51,8 +55,8 @@ export const ThreeMinuteRecoveryPlayer: React.FC = () => {
             type: 'hydration' as const,
           },
           {
-            title: 'Relax Shoulders & Small Next Step',
-            description: 'Unclench your jaw, relax your shoulders, and pick 1 low-effort task.',
+            title: 'Relax Shoulders & Mindful Reflection',
+            description: 'Unclench your jaw, relax your shoulders, and pick 1 small step.',
             duration_seconds: 60,
             type: 'rest' as const,
           },
@@ -78,6 +82,19 @@ export const ThreeMinuteRecoveryPlayer: React.FC = () => {
           }
         }
         return prev - 1;
+      });
+
+      // Breathing Cycle Logic (14s loop)
+      setPhaseSeconds((prevCycle) => {
+        const next = (prevCycle + 1) % 14;
+        if (next < 4) {
+          setBreathingPhase('breathe_in');
+        } else if (next < 8) {
+          setBreathingPhase('hold');
+        } else {
+          setBreathingPhase('breathe_out');
+        }
+        return next;
       });
     }, 1000);
 
@@ -106,16 +123,20 @@ export const ThreeMinuteRecoveryPlayer: React.FC = () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const totalSessionSeconds = totalSteps * 60;
+  const elapsedTotalSeconds = currentStepIndex * 60 + (60 - secondsRemaining);
+  const totalProgressPercent = Math.min(100, Math.round((elapsedTotalSeconds / totalSessionSeconds) * 100));
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-        {/* Backdrop */}
+        {/* Dark Healthcare Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={closeRecoveryPlayer}
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-md transition-opacity"
+          className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md transition-opacity"
         />
 
         {/* Modal Dialog */}
@@ -123,20 +144,20 @@ export const ThreeMinuteRecoveryPlayer: React.FC = () => {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-teal-100 overflow-hidden z-10 my-8"
+          className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden z-10 my-8"
         >
           {/* Header Bar */}
-          <div className="p-6 bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 text-white flex items-center justify-between">
+          <div className="p-6 bg-gradient-to-r from-[#0F172A] via-[#1E293B] to-slate-900 text-white flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-md">
-                <Sparkles className="w-5 h-5 text-white animate-pulse" />
+              <div className="p-2.5 rounded-xl bg-teal-500/20 border border-teal-400/30 backdrop-blur-md">
+                <Wind className="w-5 h-5 text-teal-400 animate-pulse" />
               </div>
               <div>
-                <h3 className="font-extrabold text-base tracking-tight font-display">
-                  3-Minute Recovery Guided Session
+                <h3 className="font-extrabold text-base tracking-tight font-display text-white">
+                  3-Minute Guided Wellness Exercise
                 </h3>
-                <p className="text-[11px] text-teal-100 font-medium">
-                  {isFinished ? 'Session Complete' : `Step ${currentStepIndex + 1} of ${totalSteps}`}
+                <p className="text-[11px] text-teal-300 font-medium">
+                  {isFinished ? 'Session Complete 🎉' : `Step ${currentStepIndex + 1} of ${totalSteps}: ${currentStep.title}`}
                 </p>
               </div>
             </div>
@@ -144,14 +165,14 @@ export const ThreeMinuteRecoveryPlayer: React.FC = () => {
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setIsAudioEnabled(!isAudioEnabled)}
-                className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
-                title={isAudioEnabled ? 'Mute Guided Chime' : 'Enable Guided Chime'}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                title={isAudioEnabled ? 'Mute Chime' : 'Enable Chime'}
               >
-                {isAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-white/60" />}
+                {isAudioEnabled ? <Volume2 className="w-4 h-4 text-teal-300" /> : <VolumeX className="w-4 h-4 text-white/50" />}
               </button>
               <button
                 onClick={closeRecoveryPlayer}
-                className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -160,85 +181,77 @@ export const ThreeMinuteRecoveryPlayer: React.FC = () => {
 
           {!isFinished ? (
             <div className="p-6 sm:p-8 text-center space-y-6">
-              {/* Progress Step Indicator */}
-              <div className="flex justify-center items-center space-x-2">
-                {planSteps.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`h-2.5 rounded-full transition-all duration-300 ${
-                      idx === currentStepIndex
-                        ? 'w-10 bg-teal-600'
-                        : idx < currentStepIndex
-                        ? 'w-6 bg-emerald-400'
-                        : 'w-4 bg-slate-200'
-                    }`}
+              {/* Overall Progress Bar */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <span>Exercise Progress</span>
+                  <span>{totalProgressPercent}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${totalProgressPercent}%` }}
+                    transition={{ duration: 0.3 }}
                   />
-                ))}
+                </div>
               </div>
 
-              {/* Step Display Card */}
-              <motion.div
-                key={currentStepIndex}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="p-6 rounded-3xl bg-slate-50 border border-teal-100 shadow-sm space-y-4"
-              >
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-teal-100 text-teal-700">
-                  {currentStep.type === 'breathing' ? (
-                    <Wind className="w-6 h-6 animate-pulse" />
-                  ) : currentStep.type === 'hydration' ? (
-                    <Droplets className="w-6 h-6 animate-bounce" />
-                  ) : (
-                    <Heart className="w-6 h-6" />
-                  )}
+              {/* Central Animated Breathing Circle */}
+              <div className="py-4 flex flex-col items-center justify-center relative">
+                <div className="relative w-44 h-44 flex items-center justify-center">
+                  {/* Outer Pulsing Glow Ring */}
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-gradient-to-tr from-teal-500/20 to-cyan-500/20 blur-xl"
+                    animate={{
+                      scale: breathingPhase === 'breathe_in' ? 1.35 : breathingPhase === 'hold' ? 1.35 : 1,
+                      opacity: breathingPhase === 'breathe_in' ? 0.8 : 0.4,
+                    }}
+                    transition={{ duration: breathingPhase === 'breathe_in' ? 4 : breathingPhase === 'breathe_out' ? 6 : 0.5, ease: 'easeInOut' }}
+                  />
+
+                  {/* Animated Breathing Circle */}
+                  <motion.div
+                    className="w-36 h-36 rounded-full bg-gradient-to-tr from-teal-500 via-cyan-500 to-emerald-400 p-1 shadow-lg shadow-cyan-500/30 flex items-center justify-center text-white"
+                    animate={{
+                      scale: breathingPhase === 'breathe_in' ? 1.28 : breathingPhase === 'hold' ? 1.28 : 1,
+                    }}
+                    transition={{ duration: breathingPhase === 'breathe_in' ? 4 : breathingPhase === 'breathe_out' ? 6 : 0.5, ease: 'easeInOut' }}
+                  >
+                    <div className="w-full h-full rounded-full bg-[#0F172A] flex flex-col items-center justify-center text-center p-3">
+                      <span className="text-xs font-extrabold tracking-widest uppercase text-cyan-400">
+                        {breathingPhase === 'breathe_in'
+                          ? 'BREATHE IN'
+                          : breathingPhase === 'hold'
+                          ? 'HOLD'
+                          : 'BREATHE OUT'}
+                      </span>
+                      <span className="text-3xl font-extrabold font-mono text-white mt-1">
+                        {formatTime(secondsRemaining)}
+                      </span>
+                    </div>
+                  </motion.div>
                 </div>
 
-                <div>
-                  <h4 className="text-lg font-bold text-slate-900 font-display">
-                    {currentStep.title}
-                  </h4>
-                  <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto leading-relaxed">
-                    {currentStep.description}
-                  </p>
-                </div>
-
-                {/* Animated Sound Wave Visualizer when Audio is ON */}
-                {isAudioEnabled && isPlaying && (
-                  <div className="flex items-center justify-center space-x-1 pt-2">
-                    <span className="w-1 h-4 bg-teal-500 rounded-full animate-pulse" />
-                    <span className="w-1 h-6 bg-cyan-500 rounded-full animate-pulse delay-75" />
-                    <span className="w-1 h-3 bg-emerald-500 rounded-full animate-pulse delay-150" />
-                    <span className="w-1 h-7 bg-teal-600 rounded-full animate-pulse delay-200" />
-                    <span className="w-1 h-4 bg-cyan-600 rounded-full animate-pulse delay-100" />
-                  </div>
-                )}
-              </motion.div>
-
-              {/* Big Countdown Timer Circle */}
-              <div className="flex flex-col items-center">
-                <div className="text-4xl font-extrabold font-mono text-teal-800 tracking-wider">
-                  {formatTime(secondsRemaining)}
-                </div>
-                <span className="text-[11px] text-slate-400 font-medium mt-1">
-                  Step {currentStepIndex + 1} of {totalSteps} Remaining
-                </span>
+                <p className="text-xs font-bold text-slate-700 mt-4 max-w-xs mx-auto">
+                  {currentStep.description}
+                </p>
               </div>
 
               {/* Player Controls */}
-              <div className="flex items-center justify-center space-x-4 pt-2">
+              <div className="flex items-center justify-center space-x-3 pt-2">
                 <button
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className="px-6 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center space-x-2 shadow-md shadow-teal-600/20 transition-all"
+                  className="px-6 py-3 rounded-2xl bg-[#0F172A] hover:bg-slate-800 text-white font-bold text-xs flex items-center space-x-2 shadow-md transition-all"
                 >
                   {isPlaying ? (
                     <>
-                      <Pause className="w-4 h-4" />
+                      <Pause className="w-4 h-4 text-teal-400" />
                       <span>Pause</span>
                     </>
                   ) : (
                     <>
-                      <Play className="w-4 h-4" />
+                      <Play className="w-4 h-4 text-teal-400" />
                       <span>Resume</span>
                     </>
                   )}
@@ -253,70 +266,48 @@ export const ThreeMinuteRecoveryPlayer: React.FC = () => {
                 </button>
               </div>
 
-              {/* Stop Without Penalty */}
-              <div className="pt-2">
+              <div className="pt-1">
                 <button
                   onClick={closeRecoveryPlayer}
                   className="text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors"
                 >
-                  Stop activity anytime without penalty
+                  End Session Anytime
                 </button>
               </div>
             </div>
           ) : (
-            /* Session Completion State */
+            /* Session Complete Screen */
             <div className="p-6 sm:p-8 text-center space-y-6">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md">
-                <CheckCircle2 className="w-10 h-10" />
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20">
+                <CheckCircle2 className="w-12 h-12" />
               </div>
 
               <div>
-                <h4 className="text-xl font-extrabold text-slate-900 font-display">
-                  Recovery Activity Complete! 🎉
+                <h4 className="text-2xl font-extrabold text-slate-900 font-display">
+                  Session Complete 🎉
                 </h4>
-                <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto">
-                  You took 3 minutes for yourself today. Your daily target is protected and lowered to ease pressure.
+                <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto leading-relaxed">
+                  "You completed your 3-minute wellness exercise."
                 </p>
               </div>
 
               {/* AI Forecast Banner */}
               <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-900 text-xs text-left">
                 <div className="flex items-center space-x-1.5 font-bold mb-1">
-                  <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-                  <span>{aiResponse?.forecast_energy_label || 'AI Estimate: Energy boost expected'}</span>
+                  <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
+                  <span>{aiResponse?.forecast_energy_label || 'AI Estimate: Energy & Focus Boosted'}</span>
                 </div>
                 <p className="text-[11px] text-teal-700">
-                  This forecast is an AI wellness estimate to encourage pacing, not a medical prediction.
+                  Your streak is protected for 24 hours. Daily target adjusted to lower cognitive load.
                 </p>
-              </div>
-
-              {/* Follow-up Check-in */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
-                  How are you feeling right now?
-                </label>
-                <div className="flex justify-center space-x-2">
-                  {['😴 Tired', '🙂 Better', '⚡ Energized', '😌 Calm'].map((label, idx) => (
-                    <button
-                      key={label}
-                      onClick={() => setPostRating(idx + 1)}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                        postRating === idx + 1
-                          ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <button
                 onClick={handleComplete}
-                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/20 transition-all"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-cyan-600 to-blue-600 text-white font-extrabold text-sm shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all flex items-center justify-center space-x-2"
               >
-                Done & Return to Recovery Dashboard
+                <span>View Wellness Result</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           )}

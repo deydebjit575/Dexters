@@ -22,8 +22,12 @@ import {
   X,
   FileText,
   Calendar,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useEnergyMode } from '../context/EnergyModeContext';
+import { useMediVault } from '../context/MediVaultContext';
+import { WellnessScoreRing } from './WellnessScoreRing';
 import { WellnessRecord } from '../types/energy';
 
 export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: () => void }> = ({
@@ -43,12 +47,28 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
     safetyResources,
   } = useEnergyMode();
 
+  const { patient, currentUser } = useMediVault();
+
   const [isExplanationOpen, setIsExplanationOpen] = useState(false);
   const [completed10MinSteps, setCompleted10MinSteps] = useState<Record<number, boolean>>({});
 
   const toggle10MinStep = (idx: number) => {
     setCompleted10MinSteps((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
+
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const timeIcon = hour < 18 ? (
+    <Sun className="w-8 h-8 text-cyan-400 fill-cyan-400/20 inline-block animate-pulse" />
+  ) : (
+    <Moon className="w-8 h-8 text-cyan-400 fill-cyan-400/20 inline-block" />
+  );
+  const patientName = patient?.fullName || currentUser?.displayName || 'User';
+
+  const latestRecord = wellnessHistory[0];
+  const latestEnergy = latestRecord?.energyLevel || (aiResponse?.energy_level || 3);
+  const latestStress = latestRecord?.stressLevel || (aiResponse?.stress_level || 2);
+  const latestSymptomsCount = (latestRecord?.symptoms || []).filter((s) => s !== 'None').length;
 
   // Extract last 7 assessments for Weekly Trend charts (sorted chronologically)
   const chartRecords = [...wellnessHistory].reverse().slice(-7);
@@ -180,38 +200,58 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
 
   return (
     <div className="space-y-8">
-      {/* 1. Header Banner & Firestore Sync Indicator */}
-      <div className="rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-sm relative overflow-hidden">
+      {/* 1. Personalized Welcome & Interactive Score Ring Command Center */}
+      <div className="rounded-3xl bg-[#0F172A] border border-slate-800 p-6 sm:p-8 shadow-xl relative overflow-hidden text-white">
         <div className="ambient-glow-cyan -top-20 -left-20 opacity-20" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          {/* Greeting & Prompt */}
+          <div className="lg:col-span-7 space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-xs">
-                ✨ Wellness Intelligence System
+              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-500/20 text-teal-300 border border-teal-500/30 font-mono">
+                ✨ Sovereign Wellness Command Center
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 font-mono">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Firestore Secured ({wellnessHistory.length} Saved)</span>
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900">
-              Personalized AI Wellness Hub
-            </h1>
-            <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
-              Track energy & stress trends, receive multi-factor personalized recommendations, review 10-minute wellness plans, and access instant emergency escalation.
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-display font-extrabold tracking-tight text-white flex items-center space-x-2">
+                <span>{timeGreeting}, {patientName}</span>
+                {timeIcon}
+              </h1>
+              <p className="text-base font-semibold text-teal-300 mt-1">
+                How are you feeling today?
+              </p>
+            </div>
+
+            <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+              Your overall wellness state is actively monitored. Complete your daily 5-step assessment to receive tailored guidance and update your weekly trends.
             </p>
+
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <button
+                onClick={openCheckInModal}
+                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-600 text-white text-xs font-extrabold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.02] transition-all flex items-center space-x-2"
+              >
+                <Sparkles className="w-4 h-4 animate-pulse" />
+                <span>Start Wellness Check →</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={openCheckInModal}
-              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-teal-500 via-cyan-600 to-blue-600 text-white text-xs font-extrabold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.02] transition-all flex items-center space-x-2"
-            >
-              <Sparkles className="w-4 h-4 animate-pulse" />
-              <span>Start Wellness Assessment</span>
-            </button>
+          {/* Interactive Wellness Score Ring Card */}
+          <div className="lg:col-span-5 flex justify-center">
+            <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-md w-full max-w-sm flex flex-col items-center">
+              <WellnessScoreRing
+                energyLevel={latestEnergy}
+                stressLevel={latestStress}
+                symptomsCount={latestSymptomsCount}
+                onClickCheckIn={openCheckInModal}
+              />
+            </div>
           </div>
         </div>
       </div>
