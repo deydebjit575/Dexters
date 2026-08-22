@@ -59,6 +59,8 @@ import { useMediVault } from '../context/MediVaultContext';
 import { RecordCategory, PrescribedMedicine, MedicalRecord } from '../types/medical';
 import { generateMedicalReportPDF } from '../services/pdfService';
 import { uploadEncryptedFileToStorage } from '../services/firebaseService';
+import { useEnergyMode } from '../context/EnergyModeContext';
+import { RecoveryPlanCard, DeferredTasksAccordion } from './GentleModeComponents';
 
 interface PatientDashboardProps {
   onOpenEmergencyModal: () => void;
@@ -100,6 +102,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     logoutUser,
     updatePatientProfile,
   } = useMediVault();
+
+  const { isGentleMode, openCheckInModal } = useEnergyMode();
 
   const navigate = useNavigate();
 
@@ -683,6 +687,14 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Gentle Mode Prominent Recovery Plan Card & Deferred Tasks Accordion */}
+              {isGentleMode && (
+                <>
+                  <RecoveryPlanCard />
+                  <DeferredTasksAccordion />
+                </>
+              )}
 
               {/* Metrics Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

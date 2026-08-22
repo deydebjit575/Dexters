@@ -7,6 +7,8 @@ import { LoginPage } from './components/LoginPage';
 import { PatientDashboard } from './components/PatientDashboard';
 import { DoctorEmergencyView } from './components/DoctorEmergencyView';
 import { EmergencyTokenModal } from './components/EmergencyTokenModal';
+import { EnergyModeProvider } from './context/EnergyModeContext';
+import { EnergyCheckInModal } from './components/EnergyCheckInModal';
 import { ShieldCheck, Lock } from 'lucide-react';
 
 // Protected route wrapper — redirects to /login if not authenticated
@@ -185,6 +187,9 @@ const AppLayout: React.FC = () => {
         onClose={() => setIsEmergencyModalOpen(false)}
       />
 
+      {/* Adaptive Energy Check-in Modal */}
+      <EnergyCheckInModal />
+
       {/* Footer (hidden on login and doctor portal pages) */}
       {!isLoginPage && !isDoctorPortal && (
         <footer className="border-t border-slate-200/80 bg-white py-8 px-4 sm:px-6 lg:px-8 mt-16 text-xs text-slate-600 shadow-sm">
@@ -214,7 +219,9 @@ export function App() {
   return (
     <BrowserRouter>
       <MediVaultProvider>
-        <AppLayout />
+        <EnergyModeProvider>
+          <AppLayout />
+        </EnergyModeProvider>
       </MediVaultProvider>
     </BrowserRouter>
   );
