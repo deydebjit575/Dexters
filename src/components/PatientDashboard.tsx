@@ -61,6 +61,9 @@ import { generateMedicalReportPDF } from '../services/pdfService';
 import { uploadEncryptedFileToStorage } from '../services/firebaseService';
 import { useEnergyMode } from '../context/EnergyModeContext';
 import { RecoveryPlanCard, DeferredTasksAccordion } from './GentleModeComponents';
+import { ThreeMinuteRecoveryPlayer } from './ThreeMinuteRecoveryPlayer';
+import { SafetyTriageModal } from './SafetyTriageModal';
+import { CoachAdminRecoveryTrends } from './CoachAdminRecoveryTrends';
 
 interface PatientDashboardProps {
   onOpenEmergencyModal: () => void;
@@ -519,6 +522,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     emergency: '/dashboard/emergency',
     security: '/dashboard/security',
     ai: '/dashboard/ai',
+    trends: '/dashboard/trends',
     profile: '/profile',
     settings: '/settings',
   };
@@ -533,6 +537,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     { id: 'emergency', label: 'Emergency Access', icon: KeyRound },
     { id: 'security', label: 'Security Dashboard', icon: ShieldCheck },
     { id: 'ai', label: 'AI Health Features', icon: Sparkles },
+    { id: 'trends', label: 'Recovery Trends', icon: BarChart2 },
     { id: 'profile', label: 'Profile', icon: UserCheck },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -2016,6 +2021,9 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
             </div>
           )}
 
+          {/* TAB 12: RECOVERY TRENDS & THRESHOLD CONFIG */}
+          {sidebarTab === 'trends' && <CoachAdminRecoveryTrends />}
+
         </main>
       </div>
 
@@ -2244,6 +2252,12 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* 3-Minute Guided Recovery Activity Player */}
+      <ThreeMinuteRecoveryPlayer />
+
+      {/* Safety Triage Escalation Modal */}
+      <SafetyTriageModal />
     </div>
   );
 };
