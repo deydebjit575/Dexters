@@ -6,8 +6,16 @@ import {
   AIPlanStep,
   SafetyResources,
   RecoveryAuditLog,
+  WellnessRecord,
+  RecommendationExplanation,
+  WellnessPlan10Min,
 } from '../types/energy';
-import { analyzeEnergyCheckIn } from '../services/energyAiService';
+import { analyzeEnergyCheckIn, generateWellnessTrendInsight } from '../services/energyAiService';
+import {
+  saveWellnessRecordToFirestore,
+  fetchWellnessHistoryFromFirestore,
+  getCurrentUser,
+} from '../services/firebaseService';
 
 interface EnergyModeContextType {
   currentMode: WellnessMode;
@@ -16,10 +24,15 @@ interface EnergyModeContextType {
   isSubmittingCheckIn: boolean;
   isTriageModalOpen: boolean;
   isRecoveryPlayerOpen: boolean;
+  isExplanationModalOpen: boolean;
   lastCheckIn: EnergyCheckInPayload | null;
   lastCheckInTime: string | null;
   aiResponse: AIWellnessResponse | null;
   recoveryPlan: AIPlanStep[];
+  wellnessHistory: WellnessRecord[];
+  activeExplanation: RecommendationExplanation | null;
+  active10MinPlan: WellnessPlan10Min | null;
+  wellnessInsight: string;
   originalActivityTarget: number;
   currentActivityTarget: number;
   isStreakProtected: boolean;
@@ -32,12 +45,15 @@ interface EnergyModeContextType {
   closeTriageModal: () => void;
   openRecoveryPlayer: () => void;
   closeRecoveryPlayer: () => void;
+  openExplanationModal: () => void;
+  closeExplanationModal: () => void;
   setMode: (mode: WellnessMode) => void;
   toggleMode: () => void;
   submitCheckIn: (payload: Omit<EnergyCheckInPayload, 'timestamp'>) => Promise<AIWellnessResponse>;
   finishRecoveryPlayer: () => void;
   runDemoPreset: (preset: 'demo1_exam' | 'demo2_normal' | 'demo3_urgent') => Promise<void>;
   updateSafetyResources: (updated: Partial<SafetyResources>) => void;
+  refreshWellnessHistory: () => Promise<void>;
 }
 
 const EnergyModeContext = createContext<EnergyModeContextType | undefined>(undefined);
@@ -55,6 +71,106 @@ const DEFAULT_SAFETY_RESOURCES: SafetyResources = {
   trustedContactAlertEnabled: true,
 };
 
+// Seed sample historical records for professional dashboard visual demo
+const SEED_WELLNESS_HISTORY: WellnessRecord[] = [
+  {
+    id: 'rec-seed-1',
+    uid: 'demo-user',
+    timestamp: new Date(Date.now() - 6 * 86400000).toISOString(),
+    energyLevel: 4,
+    stressLevel: 2,
+    symptoms: ['None'],
+    recommendationTitle: 'General Wellness Decompression',
+    plan: [
+      { title: 'Deep Mind & Body Breathwork', description: 'Diaphragmatic breathing (4s in, 6s out).', duration_seconds: 60, type: 'breathing' },
+      { title: 'Hydration & Mindful Pause', description: 'Drink a glass of water slowly.', duration_seconds: 60, type: 'hydration' },
+      { title: 'Shoulder & Jaw Release', description: 'Roll shoulders back 5 times.', duration_seconds: 60, type: 'rest' },
+    ],
+    explanation: {
+      userInputsSummary: 'Energy 4/5, Stress 2/5. Symptoms: None.',
+      whySelected: 'Good energy and low stress detected. General wellness maintenance provided.',
+      whatItSupports: 'Sustains mental clarity and balanced stamina.',
+      whenToSeekMedicalHelp: 'Seek medical evaluation if severe acute symptoms arise.',
+    },
+    wellnessPlan10Min: {
+      title: 'YOUR 10-MINUTE WELLNESS PLAN',
+      totalDurationMinutes: 10,
+      steps: [
+        { title: '3 min mindful respiration', durationMinutes: 3, type: 'breathing', description: 'Slow diaphragmatic breathing.' },
+        { title: '2 min hydration/rest reminder', durationMinutes: 2, type: 'hydration', description: 'Sip 250ml water.' },
+        { title: '3 min relaxation activity', durationMinutes: 3, type: 'gentle_movement', description: 'Gentle neck stretch.' },
+        { title: '2 min reflection', durationMinutes: 2, type: 'reflection', description: 'Acknowledge daily health priority.' },
+      ],
+    },
+    insights: 'Balanced energy day.',
+    safetyLevel: 'none',
+  },
+  {
+    id: 'rec-seed-2',
+    uid: 'demo-user',
+    timestamp: new Date(Date.now() - 4 * 86400000).toISOString(),
+    energyLevel: 3,
+    stressLevel: 3,
+    symptoms: ['Brain Fog'],
+    recommendationTitle: 'Optic Eye Strain & Screen Burnout',
+    plan: [
+      { title: '20-20-20 Optic Decompression', description: 'Look 20 feet away for 20s.', duration_seconds: 60, type: 'rest' },
+      { title: 'Hydration Pause', description: 'Sip cold water.', duration_seconds: 60, type: 'hydration' },
+      { title: 'Neck Stretch', description: 'Tilt head right/left.', duration_seconds: 60, type: 'gentle_movement' },
+    ],
+    explanation: {
+      userInputsSummary: 'Energy 3/5, Stress 3/5. Symptoms: Brain Fog.',
+      whySelected: 'Moderate stress and brain fog detected.',
+      whatItSupports: 'Restores optic focus and cervical neck circulation.',
+      whenToSeekMedicalHelp: 'Consult doctor if severe headaches persist.',
+    },
+    wellnessPlan10Min: {
+      title: 'YOUR 10-MINUTE WELLNESS PLAN',
+      totalDurationMinutes: 10,
+      steps: [
+        { title: '3 min mindful respiration', durationMinutes: 3, type: 'breathing', description: 'Slow diaphragmatic breathing.' },
+        { title: '2 min hydration/rest reminder', durationMinutes: 2, type: 'hydration', description: 'Sip 250ml water.' },
+        { title: '3 min relaxation activity', durationMinutes: 3, type: 'gentle_movement', description: 'Gentle neck stretch.' },
+        { title: '2 min reflection', durationMinutes: 2, type: 'reflection', description: 'Acknowledge daily health priority.' },
+      ],
+    },
+    insights: 'Moderate workload strain.',
+    safetyLevel: 'none',
+  },
+  {
+    id: 'rec-seed-3',
+    uid: 'demo-user',
+    timestamp: new Date(Date.now() - 2 * 86400000).toISOString(),
+    energyLevel: 2,
+    stressLevel: 4,
+    symptoms: ['Headache'],
+    recommendationTitle: 'Headache & Optic Pressure Relief',
+    plan: [
+      { title: 'Dim Lights & Optic Decompression', description: 'Step into quiet room, press cool palms over closed eyes.', duration_seconds: 60, type: 'rest' },
+      { title: 'Vascular Hydration Pause', description: 'Sip 250ml water slowly.', duration_seconds: 60, type: 'hydration' },
+      { title: 'Suboccipital Massage', description: 'Gentle circular thumb pressure to temples.', duration_seconds: 60, type: 'breathing' },
+    ],
+    explanation: {
+      userInputsSummary: 'Energy 2/5, Stress 4/5. Symptoms: Headache.',
+      whySelected: 'Headache and elevated stress reported.',
+      whatItSupports: 'Decompresses cranial tension and vascular head pressure.',
+      whenToSeekMedicalHelp: 'Seek immediate care for sudden thunderclap headaches.',
+    },
+    wellnessPlan10Min: {
+      title: 'YOUR 10-MINUTE WELLNESS PLAN',
+      totalDurationMinutes: 10,
+      steps: [
+        { title: '3 min guided breathing', durationMinutes: 3, type: 'breathing', description: 'Diaphragmatic breathing.' },
+        { title: '2 min hydration/rest reminder', durationMinutes: 2, type: 'hydration', description: 'Hydration pause.' },
+        { title: '3 min optic relaxation activity', durationMinutes: 3, type: 'gentle_movement', description: 'Temple massage.' },
+        { title: '2 min reflection', durationMinutes: 2, type: 'reflection', description: 'Restful reflection.' },
+      ],
+    },
+    insights: 'High stress & headache symptoms.',
+    safetyLevel: 'monitor',
+  },
+];
+
 export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentMode, setCurrentModeState] = useState<WellnessMode>(() => {
     const saved = localStorage.getItem(LS_MODE_KEY);
@@ -65,8 +181,9 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isSubmittingCheckIn, setIsSubmittingCheckIn] = useState(false);
   const [isTriageModalOpen, setIsTriageModalOpen] = useState(false);
   const [isRecoveryPlayerOpen, setIsRecoveryPlayerOpen] = useState(false);
+  const [isExplanationModalOpen, setIsExplanationModalOpen] = useState(false);
 
-  const [originalActivityTarget] = useState<number>(8000); // Default 8,000 steps/points target
+  const [originalActivityTarget] = useState<number>(8000);
 
   const [lastCheckIn, setLastCheckIn] = useState<EnergyCheckInPayload | null>(() => {
     try {
@@ -87,6 +204,7 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   });
 
   const [safetyResources, setSafetyResources] = useState<SafetyResources>(DEFAULT_SAFETY_RESOURCES);
+  const [wellnessHistory, setWellnessHistory] = useState<WellnessRecord[]>(SEED_WELLNESS_HISTORY);
 
   const [auditLogs, setAuditLogs] = useState<RecoveryAuditLog[]>(() => {
     try {
@@ -110,6 +228,22 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return [];
     }
   });
+
+  // Load user wellness history from Firestore simulator on mount
+  const refreshWellnessHistory = useCallback(async () => {
+    const user = getCurrentUser();
+    const uid = user ? user.uid : 'demo-user';
+    const records = await fetchWellnessHistoryFromFirestore(uid);
+    if (records && records.length > 0) {
+      setWellnessHistory(records);
+    } else {
+      setWellnessHistory(SEED_WELLNESS_HISTORY);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshWellnessHistory();
+  }, [refreshWellnessHistory]);
 
   // Calculate current target based on mode
   const currentActivityTarget =
@@ -169,6 +303,8 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const closeTriageModal = useCallback(() => setIsTriageModalOpen(false), []);
   const openRecoveryPlayer = useCallback(() => setIsRecoveryPlayerOpen(true), []);
   const closeRecoveryPlayer = useCallback(() => setIsRecoveryPlayerOpen(false), []);
+  const openExplanationModal = useCallback(() => setIsExplanationModalOpen(true), []);
+  const closeExplanationModal = useCallback(() => setIsExplanationModalOpen(false), []);
 
   const updateSafetyResources = useCallback((updated: Partial<SafetyResources>) => {
     setSafetyResources((prev) => ({ ...prev, ...updated }));
@@ -178,17 +314,44 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     async (rawPayload: Omit<EnergyCheckInPayload, 'timestamp'>): Promise<AIWellnessResponse> => {
       setIsSubmittingCheckIn(true);
       try {
+        const user = getCurrentUser();
+        const uid = user ? user.uid : 'demo-user';
+
         const fullPayload: EnergyCheckInPayload = {
           ...rawPayload,
           timestamp: new Date().toISOString(),
+          uid,
         };
 
-        const response = await analyzeEnergyCheckIn(fullPayload);
+        const response = await analyzeEnergyCheckIn(fullPayload, [], wellnessHistory);
 
         // Update state
         setLastCheckIn(fullPayload);
         setAiResponse(response);
         setMode(response.mode);
+
+        // Build new WellnessRecord for Firestore
+        const newRecord: WellnessRecord = {
+          id: `rec-${Date.now()}`,
+          uid,
+          timestamp: fullPayload.timestamp,
+          energyLevel: fullPayload.energyLevel,
+          stressLevel: fullPayload.stressLevel || 3,
+          symptoms: fullPayload.symptoms || (fullPayload.discomfortType ? [fullPayload.discomfortType] : ['None']),
+          recommendationTitle: response.plan?.[0]?.title ? `Plan: ${response.plan[0].title}` : 'General Wellness Plan',
+          plan: response.plan,
+          explanation: response.explanation!,
+          wellnessPlan10Min: response.wellness_plan_10min!,
+          insights: response.reasons?.[0] || 'AI Wellness Check-in completed.',
+          safetyLevel: response.safety_level,
+          urgentWarning: response.urgent_warning,
+        };
+
+        // Save to Firestore simulator
+        await saveWellnessRecordToFirestore(uid, newRecord);
+
+        // Update local wellness history list
+        setWellnessHistory((prev) => [newRecord, ...prev]);
 
         // Record audit log entry
         const newLog: RecoveryAuditLog = {
@@ -221,7 +384,7 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         setIsCheckInOpen(false);
 
-        if (response.mode === 'triage') {
+        if (response.mode === 'triage' || response.urgent_warning) {
           setIsTriageModalOpen(true);
         }
 
@@ -230,7 +393,7 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsSubmittingCheckIn(false);
       }
     },
-    [currentMode, originalActivityTarget, setMode]
+    [currentMode, originalActivityTarget, setMode, wellnessHistory]
   );
 
   const finishRecoveryPlayer = useCallback(() => {
@@ -253,24 +416,28 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           stressLevel: 5,
           physicalDiscomfort: true,
           discomfortType: 'Headache & Nausea',
-          feelingTags: ['Brain Fog', 'Physical Fatigue', 'Stress'],
-          note: 'Exams start in two hours, I slept 3 hours, have a headache and feel sick.',
+          symptoms: ['Headache', 'Nausea', 'Exam Stress'],
+          feelingTags: ['Brain Fog', 'Physical Fatigue', 'Exam Stress'],
+          note: 'Exams start in two hours, I slept 3 hours, have a severe headache and feel sick.',
         });
       } else if (preset === 'demo2_normal') {
         await submitCheckIn({
           energyLevel: 5,
           stressLevel: 1,
           physicalDiscomfort: false,
+          symptoms: ['None'],
           feelingTags: ['Focused', 'Rested', 'Productive'],
-          note: 'Slept 8 hours, morning coffee done, ready for the day!',
+          note: 'Slept 8 hours, morning coffee done, feeling energized!',
         });
       } else if (preset === 'demo3_urgent') {
         await submitCheckIn({
           energyLevel: 1,
           stressLevel: 5,
-          physicalDiscomfort: false,
+          physicalDiscomfort: true,
+          discomfortType: 'Chest Tightness',
+          symptoms: ['Chest Tightness', 'Shortness of Breath'],
           feelingTags: ['Anxious', 'Overwhelmed'],
-          note: 'Exams and life pressure are too high. I feel overwhelmed and I am not safe right now.',
+          note: 'Exams pressure high. I have severe chest tightness and shortness of breath right now.',
         });
       }
     },
@@ -278,6 +445,9 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   );
 
   const recoveryPlan = aiResponse?.plan || [];
+  const activeExplanation = aiResponse?.explanation || (wellnessHistory[0]?.explanation || null);
+  const active10MinPlan = aiResponse?.wellness_plan_10min || (wellnessHistory[0]?.wellnessPlan10Min || null);
+  const wellnessInsight = generateWellnessTrendInsight(wellnessHistory);
   const isGentleMode = currentMode === 'recovery' || currentMode === 'light';
   const lastCheckInTime = lastCheckIn?.timestamp || null;
 
@@ -290,10 +460,15 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isSubmittingCheckIn,
         isTriageModalOpen,
         isRecoveryPlayerOpen,
+        isExplanationModalOpen,
         lastCheckIn,
         lastCheckInTime,
         aiResponse,
         recoveryPlan,
+        wellnessHistory,
+        activeExplanation,
+        active10MinPlan,
+        wellnessInsight,
         originalActivityTarget,
         currentActivityTarget,
         isStreakProtected,
@@ -306,12 +481,15 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         closeTriageModal,
         openRecoveryPlayer,
         closeRecoveryPlayer,
+        openExplanationModal,
+        closeExplanationModal,
         setMode,
         toggleMode,
         submitCheckIn,
         finishRecoveryPlayer,
         runDemoPreset,
         updateSafetyResources,
+        refreshWellnessHistory,
       }}
     >
       {children}
@@ -326,3 +504,4 @@ export const useEnergyMode = () => {
   }
   return context;
 };
+

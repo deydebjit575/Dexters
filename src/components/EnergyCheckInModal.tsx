@@ -41,6 +41,8 @@ const DISCOMFORT_TYPES = [
   'Muscle Pain',
   'Chest Tightness',
   'General Sickness',
+  'Exam Stress',
+  'Fatigue',
   'None',
 ];
 
@@ -64,12 +66,12 @@ export const EnergyCheckInModal: React.FC = () => {
     runDemoPreset,
   } = useEnergyMode();
 
-  const [selectedEnergy, setSelectedEnergy] = useState<EnergyLevel>(2);
-  const [selectedStress, setSelectedStress] = useState<StressLevel>(4);
-  const [hasDiscomfort, setHasDiscomfort] = useState<boolean>(true);
-  const [discomfortType, setDiscomfortType] = useState<string>('Headache');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['Brain Fog', 'Exam Stress']);
-  const [note, setNote] = useState('Exams start in two hours, I slept 3 hours, have a headache and feel sick.');
+  const [selectedEnergy, setSelectedEnergy] = useState<EnergyLevel>(3);
+  const [selectedStress, setSelectedStress] = useState<StressLevel>(2);
+  const [hasDiscomfort, setHasDiscomfort] = useState<boolean>(false);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(['None']);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [note, setNote] = useState('');
 
   // Universal Voice Check-in state (supports ALL browsers & devices)
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -77,10 +79,21 @@ export const EnergyCheckInModal: React.FC = () => {
   const [voiceStatusText, setVoiceStatusText] = useState('');
   const [showVoiceDictationHelper, setShowVoiceDictationHelper] = useState(false);
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+  const toggleSymptom = (symptom: string) => {
+    if (symptom === 'None') {
+      setSelectedSymptoms(['None']);
+      setHasDiscomfort(false);
+      return;
+    }
+    setHasDiscomfort(true);
+    setSelectedSymptoms((prev) => {
+      const filtered = prev.filter((s) => s !== 'None');
+      if (filtered.includes(symptom)) {
+        const next = filtered.filter((s) => s !== symptom);
+        return next.length === 0 ? ['None'] : next;
+      }
+      return [...filtered, symptom];
+    });
   };
 
   // Voice recording timer counter
@@ -97,13 +110,12 @@ export const EnergyCheckInModal: React.FC = () => {
   }, [isRecordingVoice]);
 
   /**
-   * Universal Voice Check-in Handler (works on ALL browsers)
+   * Universal Voice Check-in Handler
    */
   const handleToggleVoiceInput = async () => {
     if (isRecordingVoice) {
-      // Stop recording
       setIsRecordingVoice(false);
-      setVoiceStatusText('Audio recorded. Processing speech-to-text...');
+      setVoiceStatusText('Audio recorded. Transcribed to text!');
       setTimeout(() => setVoiceStatusText(''), 3000);
       return;
     }
@@ -119,7 +131,7 @@ export const EnergyCheckInModal: React.FC = () => {
 
         recognition.onstart = () => {
           setIsRecordingVoice(true);
-          setVoiceStatusText('🎙️ Listening... Speak your health symptoms now.');
+          setVoiceStatusText('🎙️ Listening... Speak how you feel now.');
         };
 
         recognition.onresult = (event: any) => {
@@ -128,6 +140,21 @@ export const EnergyCheckInModal: React.FC = () => {
             .join(' ');
           if (transcript.trim()) {
             setNote(transcript);
+
+            // Auto-detect symptoms from spoken audio
+            const lower = transcript.toLowerCase();
+            const detected: string[] = [];
+            if (lower.includes('headache') || lower.includes('head ache')) detected.push('Headache');
+            if (lower.includes('nausea') || lower.includes('stomach') || lower.includes('sick')) detected.push('Nausea / Stomach');
+            if (lower.includes('chest') || lower.includes('breath')) detected.push('Chest Tightness');
+            if (lower.includes('muscle') || lower.includes('sore') || lower.includes('ache')) detected.push('Muscle Pain');
+            if (lower.includes('exam') || lower.includes('test') || lower.includes('study')) detected.push('Exam Stress');
+            if (lower.includes('fatigue') || lower.includes('tired')) detected.push('Fatigue');
+
+            if (detected.length > 0) {
+              setSelectedSymptoms(detected);
+              setHasDiscomfort(true);
+            }
           }
         };
 
@@ -152,17 +179,13 @@ export const EnergyCheckInModal: React.FC = () => {
     }
   };
 
-  /**
-   * Universal Fallback Audio Recorder using MediaRecorder API + Dictation Helper
-   */
   const fallbackUniversalVoiceRecorder = async () => {
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setIsRecordingVoice(true);
-        setVoiceStatusText('🎙️ Recording voice audio (Universal Mic Engine)...');
+        setVoiceStatusText('🎙️ Recording voice audio...');
 
-        // Stop stream after 5 seconds of dictation
         setTimeout(() => {
           stream.getTracks().forEach((track) => track.stop());
           setIsRecordingVoice(false);
@@ -173,7 +196,6 @@ export const EnergyCheckInModal: React.FC = () => {
         setShowVoiceDictationHelper(true);
       }
     } catch (err) {
-      // Permission blocked or unsupported device -> open Dictation Helper
       setShowVoiceDictationHelper(true);
       setVoiceStatusText('Mic permission prompt blocked. Click sample dictation below:');
     }
@@ -181,6 +203,21 @@ export const EnergyCheckInModal: React.FC = () => {
 
   const handleApplyVoiceSample = (sampleText: string) => {
     setNote(sampleText);
+
+    const lower = sampleText.toLowerCase();
+    const detected: string[] = [];
+    if (lower.includes('headache')) detected.push('Headache');
+    if (lower.includes('stomach') || lower.includes('nausea') || lower.includes('sick')) detected.push('Nausea / Stomach');
+    if (lower.includes('chest') || lower.includes('breath')) detected.push('Chest Tightness');
+    if (lower.includes('muscle') || lower.includes('sore')) detected.push('Muscle Pain');
+    if (lower.includes('exam')) detected.push('Exam Stress');
+    if (lower.includes('fatigue') || lower.includes('tired')) detected.push('Fatigue');
+
+    if (detected.length > 0) {
+      setSelectedSymptoms(detected);
+      setHasDiscomfort(true);
+    }
+
     setVoiceStatusText(`✓ Voice sample applied: "${sampleText.substring(0, 30)}..."`);
     setTimeout(() => setVoiceStatusText(''), 3000);
   };
@@ -190,8 +227,9 @@ export const EnergyCheckInModal: React.FC = () => {
     await submitCheckIn({
       energyLevel: selectedEnergy,
       stressLevel: selectedStress,
-      physicalDiscomfort: hasDiscomfort && discomfortType !== 'None',
-      discomfortType: hasDiscomfort ? discomfortType : undefined,
+      physicalDiscomfort: selectedSymptoms.length > 0 && !selectedSymptoms.includes('None'),
+      discomfortType: selectedSymptoms.join(', '),
+      symptoms: selectedSymptoms,
       feelingTags: selectedTags,
       note: note.trim() || undefined,
       isVoiceInput: true,
@@ -235,20 +273,20 @@ export const EnergyCheckInModal: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 font-display">
-                  Wellness Energy & Stress Check-in
+                  Personalized Wellness Assessment
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Universal Voice Check-in enabled for all browsers & devices.
+                  Voice check-in & multi-factor health analysis
                 </p>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
-            {/* Quick Demo Shortcuts */}
+            {/* Quick Demo Shortcuts for Judges */}
             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
               <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                🚀 Quick Demo Shortcuts:
+                🚀 Quick Judge Demo Shortcuts:
               </span>
               <div className="flex flex-wrap gap-1.5">
                 <button
@@ -256,21 +294,21 @@ export const EnergyCheckInModal: React.FC = () => {
                   onClick={() => runDemoPreset('demo1_exam')}
                   className="px-2.5 py-1 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[11px] transition-colors"
                 >
-                  🎓 Demo 1: Exam Stress & Sickness
+                  🎓 Demo 1: High Stress + Headache
                 </button>
                 <button
                   type="button"
                   onClick={() => runDemoPreset('demo2_normal')}
                   className="px-2.5 py-1 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold text-[11px] transition-colors"
                 >
-                  ☀️ Demo 2: Normal High Energy
+                  ☀️ Demo 2: Good Energy + Low Stress
                 </button>
                 <button
                   type="button"
                   onClick={() => runDemoPreset('demo3_urgent')}
                   className="px-2.5 py-1 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-900 font-bold text-[11px] transition-colors"
                 >
-                  🆘 Demo 3: Urgent Safety Alert
+                  🆘 Demo 3: Urgent Safety Escalation
                 </button>
               </div>
             </div>
@@ -278,7 +316,7 @@ export const EnergyCheckInModal: React.FC = () => {
             {/* 1. Energy Scale (1 to 5) */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                1. Energy level (1 = Drained, 5 = Peak)
+                1. Energy Level (1 = Drained, 5 = Peak)
               </label>
               <div className="grid grid-cols-5 gap-2">
                 {ENERGY_OPTIONS.map((opt) => (
@@ -286,7 +324,7 @@ export const EnergyCheckInModal: React.FC = () => {
                     key={opt.level}
                     type="button"
                     onClick={() => setSelectedEnergy(opt.level)}
-                    className={`p-3.5 rounded-2xl border text-center transition-all ${
+                    className={`p-3 rounded-2xl border text-center transition-all ${
                       selectedEnergy === opt.level
                         ? 'bg-cyan-50 border-2 border-cyan-500 shadow-md font-bold'
                         : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
@@ -302,7 +340,7 @@ export const EnergyCheckInModal: React.FC = () => {
             {/* 2. Stress Scale (1 to 5) */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                2. Stress level (1 = Low, 5 = High)
+                2. Stress Level (1 = Calm, 5 = Severe)
               </label>
               <div className="grid grid-cols-5 gap-1.5">
                 {STRESS_OPTIONS.map((opt) => (
@@ -320,80 +358,72 @@ export const EnergyCheckInModal: React.FC = () => {
               </div>
             </div>
 
-            {/* 3. Physical Discomfort Selection */}
+            {/* 3. Symptom Selection */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                  3. Physical discomfort or feeling sick?
-                </label>
-                <input
-                  type="checkbox"
-                  checked={hasDiscomfort}
-                  onChange={(e) => setHasDiscomfort(e.target.checked)}
-                  className="rounded text-cyan-600 focus:ring-cyan-500 w-4 h-4 cursor-pointer"
-                />
-              </div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+                3. Select Current Symptoms / Discomfort:
+              </label>
 
-              {hasDiscomfort && (
-                <div className="grid grid-cols-3 gap-1.5">
-                  {DISCOMFORT_TYPES.map((type) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {DISCOMFORT_TYPES.map((type) => {
+                  const isSelected = selectedSymptoms.includes(type);
+                  return (
                     <button
                       key={type}
                       type="button"
-                      onClick={() => setDiscomfortType(type)}
-                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
-                        discomfortType === type
-                          ? 'bg-amber-500 text-white border-amber-500 font-bold'
-                          : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                      onClick={() => toggleSymptom(type)}
+                      className={`px-2.5 py-2 rounded-xl text-[11px] font-bold border transition-all ${
+                        isSelected
+                          ? type === 'None'
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
                       {type}
                     </button>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
 
-            {/* 4. Universal Voice Check-in & Text Entry */}
+            {/* 4. Voice-Based Wellness Check ("Tell us how you feel") */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="wellness-note" className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                  <span>4. How are you feeling today?</span>
-                  <span className="text-[10px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md font-mono border border-teal-200">
-                    🎙️ Voice Enabled
-                  </span>
+                  <span>4. Voice Check-in Description</span>
                 </label>
 
-                {/* Universal Voice Mic Button */}
+                {/* Microphone Button labeled "Tell us how you feel" */}
                 <button
                   type="button"
                   onClick={handleToggleVoiceInput}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all shadow-xs ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all shadow-xs ${
                     isRecordingVoice
                       ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-600 ring-offset-1'
-                      : 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white hover:opacity-90'
+                      : 'bg-gradient-to-r from-teal-500 via-cyan-600 to-blue-600 text-white hover:opacity-95'
                   }`}
                 >
                   {isRecordingVoice ? (
                     <>
                       <Square className="w-3.5 h-3.5 fill-white" />
-                      <span>Stop ({voiceSeconds}s)</span>
+                      <span>Stop Listening ({voiceSeconds}s)</span>
                     </>
                   ) : (
                     <>
-                      <Mic className="w-3.5 h-3.5 text-white" />
-                      <span>Voice Check-in</span>
+                      <Mic className="w-3.5 h-3.5 text-white animate-bounce" />
+                      <span>Tell us how you feel</span>
                     </>
                   )}
                 </button>
               </div>
 
-              {/* Live Voice Status Indicator & Audio Wave Visualizer */}
+              {/* Live Voice Status Indicator */}
               {isRecordingVoice && (
                 <div className="mb-2 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
-                    <span className="font-bold">Listening & Transcribing... ({voiceSeconds}s)</span>
+                    <span className="font-bold">Listening & Converting Speech to Text... ({voiceSeconds}s)</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="w-1 h-3 bg-rose-500 rounded-full animate-bounce" />
@@ -414,11 +444,11 @@ export const EnergyCheckInModal: React.FC = () => {
                 rows={2}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="e.g. Exams start in two hours, I slept 3 hours, have a headache..."
+                placeholder="Or type how you feel (e.g. Slept poorly, feeling stressed and have a headache...)"
                 className="w-full px-4 py-2.5 rounded-xl text-xs text-slate-800 bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all placeholder:text-slate-400"
               />
 
-              {/* Quick Voice Dictation Sample Prompts for All Browsers */}
+              {/* Sample Voice Dictation Prompts */}
               <div className="mt-2 text-left">
                 <button
                   type="button"
@@ -426,19 +456,19 @@ export const EnergyCheckInModal: React.FC = () => {
                   className="text-[11px] text-cyan-700 hover:underline font-semibold flex items-center gap-1"
                 >
                   <Volume2 className="w-3 h-3 text-cyan-600" />
-                  <span>{showVoiceDictationHelper ? 'Hide Voice Sample Dictations ▲' : '🎙️ Click to Dictate Sample Voice Input ▼'}</span>
+                  <span>{showVoiceDictationHelper ? 'Hide Voice Sample Dictations ▲' : '🎙️ Sample Voice Input Dictations ▼'}</span>
                 </button>
 
                 {showVoiceDictationHelper && (
                   <div className="mt-2 p-2.5 rounded-2xl bg-slate-100/90 border border-slate-200 space-y-1.5 text-xs">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase">Click any sample voice dictation:</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">Click sample to emulate spoken audio:</p>
                     <div className="flex flex-wrap gap-1.5">
                       <button
                         type="button"
                         onClick={() => handleApplyVoiceSample('I have a severe pounding headache and eye strain from studying.')}
                         className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-teal-50 text-[11px]"
                       >
-                        🗣️ "Pounding headache & eye strain"
+                        🗣️ "Severe headache & eye strain"
                       </button>
                       <button
                         type="button"
@@ -449,17 +479,10 @@ export const EnergyCheckInModal: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleApplyVoiceSample('I feel chest tightness and breathless after panic from test deadline.')}
+                        onClick={() => handleApplyVoiceSample('I feel chest tightness and severe shortness of breath right now.')}
                         className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-teal-50 text-[11px]"
                       >
-                        🗣️ "Chest tightness & panic"
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyVoiceSample('Sore muscles and physical fatigue after intense workout.')}
-                        className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-teal-50 text-[11px]"
-                      >
-                        🗣️ "Sore muscles & fatigue"
+                        🗣️ "Chest tightness & shortness of breath"
                       </button>
                     </div>
                   </div>
@@ -467,9 +490,9 @@ export const EnergyCheckInModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Disclaimer */}
+            {/* Non-medical Disclaimer */}
             <p className="text-[11px] text-slate-400 text-center font-mono">
-              ℹ️ Universal Voice Check-in feature. Provides wellness support and does not replace emergency care (Dial 112).
+              ℹ️ General wellness support tool. Does not diagnose diseases or replace medical advice.
             </p>
 
             {/* Submit Button */}
@@ -481,12 +504,12 @@ export const EnergyCheckInModal: React.FC = () => {
               {isSubmittingCheckIn ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Analyzing Universal Voice Check-in...</span>
+                  <span>Analyzing Wellness Assessment...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Submit & Analyze Check-in</span>
+                  <span>Submit & Analyze Assessment</span>
                 </>
               )}
             </button>
@@ -496,3 +519,4 @@ export const EnergyCheckInModal: React.FC = () => {
     </AnimatePresence>
   );
 };
+

@@ -9,7 +9,8 @@ export type ActivityStepType =
   | 'rest'
   | 'gentle_movement'
   | 'grounding'
-  | 'focus_reset';
+  | 'focus_reset'
+  | 'reflection';
 
 export interface AIPlanStep {
   title: string;
@@ -26,18 +27,43 @@ export interface GoalAdjustments {
   new_target?: number;
 }
 
+export interface RecommendationExplanation {
+  userInputsSummary: string;
+  whySelected: string;
+  whatItSupports: string;
+  whenToSeekMedicalHelp: string;
+}
+
+export interface WellnessPlanStep10Min {
+  title: string;
+  durationMinutes: number;
+  type: ActivityStepType;
+  description: string;
+  completed?: boolean;
+}
+
+export interface WellnessPlan10Min {
+  title: string;
+  totalDurationMinutes: number;
+  steps: WellnessPlanStep10Min[];
+}
+
 export interface AIWellnessResponse {
   mode: WellnessMode;
   energy_level: EnergyLevel;
   stress_level: StressLevel;
   physical_discomfort: boolean;
   discomfort_details?: string;
+  symptoms?: string[];
   confidence: number;
   reasons: string[];
   plan: AIPlanStep[];
   goal_adjustments: GoalAdjustments;
   safety_level: SafetyLevel;
   forecast_energy_label?: string;
+  explanation?: RecommendationExplanation;
+  wellness_plan_10min?: WellnessPlan10Min;
+  urgent_warning?: string;
 }
 
 export interface EnergyCheckInPayload {
@@ -45,10 +71,28 @@ export interface EnergyCheckInPayload {
   stressLevel?: StressLevel;
   physicalDiscomfort?: boolean;
   discomfortType?: string;
+  symptoms?: string[];
   feelingTags: string[];
   note?: string;
   timestamp: string;
   isVoiceInput?: boolean;
+  uid?: string;
+}
+
+export interface WellnessRecord {
+  id: string;
+  uid: string;
+  timestamp: string;
+  energyLevel: EnergyLevel;
+  stressLevel: StressLevel;
+  symptoms: string[];
+  recommendationTitle: string;
+  plan: AIPlanStep[];
+  explanation: RecommendationExplanation;
+  wellnessPlan10Min: WellnessPlan10Min;
+  insights: string;
+  safetyLevel: SafetyLevel;
+  urgentWarning?: string;
 }
 
 export interface SafetyResources {
@@ -72,3 +116,4 @@ export interface RecoveryAuditLog {
 }
 
 export type EnergyMode = 'gentle' | 'normal'; // legacy alias support
+

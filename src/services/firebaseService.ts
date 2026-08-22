@@ -1,4 +1,5 @@
 import { PatientProfile, MedicalRecord, AccessGrant, AuditLogEntry, GranularPermissions } from '../types/medical';
+import { WellnessRecord } from '../types/energy';
 
 export interface FirebaseUser {
   uid: string;
@@ -14,6 +15,7 @@ export interface FirebaseUserData {
   accessGrants: AccessGrant[];
   auditLogs: AuditLogEntry[];
   granularPermissions: GranularPermissions;
+  wellnessRecords?: WellnessRecord[];
 }
 
 // In-Memory & LocalStorage persistent Firebase state
@@ -249,3 +251,59 @@ export async function uploadEncryptedFileToStorage(
     sizeFormatted,
   };
 }
+
+/**
+ * Firestore DB Simulator: Save user-specific wellness assessment record
+ */
+export const saveWellnessRecordToFirestore = async (uid: string, record: WellnessRecord): Promise<void> => {
+  try {
+    const raw = localStorage.getItem(`medivault_firebase_db_${uid}`);
+    let dbData: FirebaseUserData;
+    if (raw) {
+      dbData = JSON.parse(raw);
+    } else {
+      const fetched = await fetchUserDataFromFirebase(uid);
+      dbData = fetched || {
+        patient: { id: uid } as any,
+        records: [],
+        accessGrants: [],
+        auditLogs: [],
+        granularPermissions: {} as any,
+      };
+    }
+
+    const currentRecords = dbData.wellnessRecords || [];
+    // Keep most recent first, prevent duplicates
+    const updated = [record, ...currentRecords.filter((r) => r.id !== record.id)];
+    dbData.wellnessRecords = updated;
+
+    saveUserDataToFirebase(uid, dbData);
+    // Also save to dedicated key for fallback fast retrieval
+    localStorage.setItem(`medivault_wellness_history_${uid}`, JSON.stringify(updated));
+  } catch (err) {
+    console.error('Failed to save wellness record to Firestore simulator:', err);
+  }
+};
+
+/**
+ * Firestore DB Simulator: Fetch user-specific wellness assessment history
+ */
+export const fetchWellnessHistoryFromFirestore = async (uid: string): Promise<WellnessRecord[]> => {
+  try {
+    const rawDb = localStorage.getItem(`medivault_firebase_db_${uid}`);
+    if (rawDb) {
+      const dbData: FirebaseUserData = JSON.parse(rawDb);
+      if (Array.isArray(dbData.wellnessRecords) && dbData.wellnessRecords.length > 0) {
+        return dbData.wellnessRecords;
+      }
+    }
+    const rawFallback = localStorage.getItem(`medivault_wellness_history_${uid}`);
+    if (rawFallback) {
+      return JSON.parse(rawFallback);
+    }
+  } catch (err) {
+    console.error('Failed to fetch wellness history from Firestore simulator:', err);
+  }
+  return [];
+};
+

@@ -64,6 +64,7 @@ import { RecoveryPlanCard, DeferredTasksAccordion } from './GentleModeComponents
 import { ThreeMinuteRecoveryPlayer } from './ThreeMinuteRecoveryPlayer';
 import { SafetyTriageModal } from './SafetyTriageModal';
 import { CoachAdminRecoveryTrends } from './CoachAdminRecoveryTrends';
+import { WellnessIntelligenceDashboard } from './WellnessIntelligenceDashboard';
 
 interface PatientDashboardProps {
   onOpenEmergencyModal: () => void;
@@ -700,6 +701,9 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   <DeferredTasksAccordion />
                 </>
               )}
+
+              {/* Advanced Wellness Intelligence System Dashboard */}
+              <WellnessIntelligenceDashboard onOpenEmergencyModal={onOpenEmergencyModal} />
 
               {/* Metrics Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -1541,6 +1545,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           {/* TAB 9: AI HEALTH FEATURES */}
           {sidebarTab === 'ai' && (
             <div className="space-y-6">
+              <WellnessIntelligenceDashboard onOpenEmergencyModal={onOpenEmergencyModal} />
+
               <div>
                 <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
                   <Sparkles className="w-5 h-5 text-cyan-500" />
