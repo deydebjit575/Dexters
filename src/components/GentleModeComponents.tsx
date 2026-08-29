@@ -39,7 +39,7 @@ export const HeaderPill: React.FC = () => {
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </span>
           <span className="font-bold font-display text-teal-950 flex items-center gap-1.5">
-            🌱 {currentMode === 'recovery' ? 'Recovery Day Mode Active' : 'Light Mode Active'}
+            🌱 {currentMode === 'recovery' ? 'Recovery Day Mode Active' : currentMode === 'light' ? 'Light Mode Active' : 'Normal Mode Active'}
           </span>
           <span className="text-teal-700/60 hidden md:inline">•</span>
           <span className="text-teal-800/80 hidden md:inline">
@@ -58,12 +58,21 @@ export const HeaderPill: React.FC = () => {
             </button>
           )}
 
-          <button
-            onClick={() => setMode('normal')}
-            className="px-3 py-1 rounded-full bg-white text-teal-800 hover:text-teal-950 hover:bg-teal-100/60 border border-teal-300/80 font-bold text-[11px] transition-all shadow-xs"
-          >
-            Switch to Normal Mode
-          </button>
+          {currentMode !== 'normal' ? (
+            <button
+              onClick={() => setMode('normal')}
+              className="px-3 py-1 rounded-full bg-white text-teal-800 hover:text-teal-950 hover:bg-teal-100/60 border border-teal-300/80 font-bold text-[11px] transition-all shadow-xs"
+            >
+              Switch to Normal Mode
+            </button>
+          ) : (
+            <button
+              onClick={() => setMode('recovery')}
+              className="px-3 py-1 rounded-full bg-white text-teal-800 hover:text-teal-950 hover:bg-teal-100/60 border border-teal-300/80 font-semibold text-[11px] transition-all shadow-xs"
+            >
+              Switch to Recovery Mode
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -82,6 +91,7 @@ export const RecoveryPlanCard: React.FC = () => {
     openTriageModal,
     originalActivityTarget,
     currentActivityTarget,
+    currentMode,
   } = useEnergyMode();
 
   const [showStreakTooltip, setShowStreakTooltip] = useState(false);
@@ -113,7 +123,7 @@ export const RecoveryPlanCard: React.FC = () => {
                 Today can be lighter 🌱
               </h3>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
-                {aiResponse?.mode || 'Recovery Mode'}
+                {currentMode.toUpperCase()} Mode
               </span>
             </div>
             <p className="text-xs font-medium text-teal-800 mt-1 max-w-xl">

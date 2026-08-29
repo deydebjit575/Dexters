@@ -184,6 +184,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Handle user login and gradual Firebase data streaming
   const handleUserLogin = async (user: FirebaseUser) => {
     setCurrentUser(user);
+    localStorage.removeItem('medivault_checkin_completed');
 
     setIsFetchingFirebase(true);
     setSyncProgress(10);
@@ -269,6 +270,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const logoutUser = async () => {
     await logoutFirebase();
     setCurrentUser(null);
+    localStorage.removeItem('medivault_checkin_completed');
     resetToEmptyProfile();
   };
 
@@ -284,6 +286,7 @@ export const MediVaultProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     localStorage.removeItem('medivault_grants');
     localStorage.removeItem('medivault_logs');
     localStorage.removeItem('medivault_granular_perms');
+    localStorage.removeItem('medivault_checkin_completed');
   };
 
   const resetToDemoProfile = resetToEmptyProfile;

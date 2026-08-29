@@ -4,8 +4,8 @@ import { Activity, Heart, Sparkles, ShieldCheck } from 'lucide-react';
 import { EnergyLevel, StressLevel } from '../types/energy';
 
 interface WellnessScoreRingProps {
-  energyLevel: EnergyLevel;
-  stressLevel: StressLevel;
+  energyLevel: number;
+  stressLevel: number;
   symptomsCount?: number;
   scoreOverride?: number;
   size?: number;
@@ -45,25 +45,33 @@ export const WellnessScoreRing: React.FC<WellnessScoreRingProps> = ({
   let colorGradient = {
     start: '#10B981', // Emerald
     end: '#06B6D4',   // Cyan
-    badgeBg: 'bg-emerald-500/10 text-emerald-700 border-emerald-200',
-    ringTrack: 'stroke-emerald-100',
+    badgeBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    ringTrack: 'stroke-slate-800',
   };
 
-  if (rawScore < 50) {
+  if (rawScore === 0) {
+    statusLabel = 'Pending Assessment';
+    colorGradient = {
+      start: '#06B6D4', // Cyan
+      end: '#3B82F6',   // Blue
+      badgeBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+      ringTrack: 'stroke-slate-800',
+    };
+  } else if (rawScore < 50) {
     statusLabel = 'Needs Attention';
     colorGradient = {
       start: '#F43F5E', // Rose
       end: '#F97316',   // Orange
-      badgeBg: 'bg-rose-500/10 text-rose-700 border-rose-200',
-      ringTrack: 'stroke-rose-100',
+      badgeBg: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+      ringTrack: 'stroke-slate-800',
     };
   } else if (rawScore < 75) {
     statusLabel = 'Moderate Wellness';
     colorGradient = {
       start: '#0D9488', // Teal
       end: '#F59E0B',   // Amber
-      badgeBg: 'bg-amber-500/10 text-amber-700 border-amber-200',
-      ringTrack: 'stroke-amber-100',
+      badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+      ringTrack: 'stroke-slate-800',
     };
   }
 

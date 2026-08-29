@@ -35,6 +35,7 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
 }) => {
   const {
     currentMode,
+    setMode,
     openCheckInModal,
     openRecoveryPlayer,
     openTriageModal,
@@ -45,6 +46,7 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
     active10MinPlan,
     wellnessInsight,
     safetyResources,
+    hasCompletedCheckIn,
   } = useEnergyMode();
 
   const { patient, currentUser } = useMediVault();
@@ -66,9 +68,10 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
   const patientName = patient?.fullName || currentUser?.displayName || 'User';
 
   const latestRecord = wellnessHistory[0];
-  const latestEnergy = latestRecord?.energyLevel || (aiResponse?.energy_level || 3);
-  const latestStress = latestRecord?.stressLevel || (aiResponse?.stress_level || 2);
-  const latestSymptomsCount = (latestRecord?.symptoms || []).filter((s) => s !== 'None').length;
+  const latestEnergy = hasCompletedCheckIn ? (latestRecord?.energyLevel || (aiResponse?.energy_level || 3)) : 0;
+  const latestStress = hasCompletedCheckIn ? (latestRecord?.stressLevel || (aiResponse?.stress_level || 2)) : 0;
+  const latestSymptomsCount = hasCompletedCheckIn ? (latestRecord?.symptoms || []).filter((s) => s !== 'None').length : 0;
+  const scoreOverride = hasCompletedCheckIn ? undefined : 0;
 
   // Extract last 7 assessments for Weekly Trend charts (sorted chronologically)
   const chartRecords = [...wellnessHistory].reverse().slice(-7);
@@ -239,6 +242,23 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
                 <Sparkles className="w-4 h-4 animate-pulse" />
                 <span>Start Wellness Check →</span>
               </button>
+
+              {currentMode !== 'normal' ? (
+                <button
+                  onClick={() => setMode('normal')}
+                  className="px-5 py-3.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-extrabold border border-emerald-500/40 transition-all flex items-center space-x-2"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Switch to Normal Mode</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setMode('recovery')}
+                  className="px-5 py-3.5 rounded-2xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 text-xs font-semibold border border-teal-500/20 transition-all flex items-center space-x-1.5"
+                >
+                  <span>Switch to Recovery Mode</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -249,6 +269,7 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
                 energyLevel={latestEnergy}
                 stressLevel={latestStress}
                 symptomsCount={latestSymptomsCount}
+                scoreOverride={scoreOverride}
                 onClickCheckIn={openCheckInModal}
               />
             </div>
@@ -326,7 +347,7 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
                 Simple Wellness Insight:
               </span>
               <p className="text-xs font-bold text-slate-900 mt-0.5">
-                "{wellnessInsight}"
+                "{hasCompletedCheckIn ? wellnessInsight : 'Welcome! Complete your daily 5-step energy check-in to calculate your personalized wellness score & insights.'}"
               </p>
             </div>
           </div>
@@ -405,7 +426,7 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
                   Smart Personalized Recommendation
                 </h3>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-teal-100 text-teal-800 border border-teal-300">
-                  {aiResponse?.mode || currentMode} Mode
+                  {currentMode.toUpperCase()} Mode
                 </span>
               </div>
               <p className="text-xs text-slate-600 mt-0.5">
@@ -415,6 +436,15 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
           </div>
 
           <div className="flex items-center space-x-3">
+            {currentMode !== 'normal' && (
+              <button
+                onClick={() => setMode('normal')}
+                className="px-4 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold text-xs shadow-xs transition-all flex items-center space-x-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Switch to Normal Mode</span>
+              </button>
+            )}
             {/* Explain My Recommendation Button */}
             <button
               onClick={() => setIsExplanationOpen(true)}

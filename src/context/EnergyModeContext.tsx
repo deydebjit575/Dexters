@@ -25,6 +25,7 @@ interface EnergyModeContextType {
   isTriageModalOpen: boolean;
   isRecoveryPlayerOpen: boolean;
   isExplanationModalOpen: boolean;
+  hasCompletedCheckIn: boolean;
   lastCheckIn: EnergyCheckInPayload | null;
   lastCheckInTime: string | null;
   aiResponse: AIWellnessResponse | null;
@@ -54,6 +55,7 @@ interface EnergyModeContextType {
   runDemoPreset: (preset: 'demo1_exam' | 'demo2_normal' | 'demo3_urgent') => Promise<void>;
   updateSafetyResources: (updated: Partial<SafetyResources>) => void;
   refreshWellnessHistory: () => Promise<void>;
+  resetCheckInStatus: () => void;
 }
 
 const EnergyModeContext = createContext<EnergyModeContextType | undefined>(undefined);
@@ -62,6 +64,7 @@ const LS_MODE_KEY = 'medivault_current_wellness_mode';
 const LS_LAST_CHECKIN_KEY = 'medivault_last_wellness_checkin';
 const LS_AI_RESPONSE_KEY = 'medivault_ai_wellness_response';
 const LS_AUDIT_LOGS_KEY = 'medivault_wellness_audit_logs';
+const LS_CHECKIN_DONE_KEY = 'medivault_checkin_completed';
 
 const DEFAULT_SAFETY_RESOURCES: SafetyResources = {
   crisisHotline: '988 (Suicide & Crisis Lifeline - 24/7 Free & Confidential)',
@@ -281,10 +284,25 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [currentMode]);
 
+  const [hasCompletedCheckIn, setHasCompletedCheckIn] = useState<boolean>(() => {
+    return localStorage.getItem(LS_CHECKIN_DONE_KEY) === 'true';
+  });
+
+  const resetCheckInStatus = useCallback(() => {
+    setHasCompletedCheckIn(false);
+    localStorage.removeItem(LS_CHECKIN_DONE_KEY);
+  }, []);
+
   const setMode = useCallback(
     (mode: WellnessMode) => {
       setCurrentModeState(mode);
       localStorage.setItem(LS_MODE_KEY, mode);
+      setAiResponse((prev) => {
+        if (!prev) return null;
+        const updated = { ...prev, mode };
+        localStorage.setItem(LS_AI_RESPONSE_KEY, JSON.stringify(updated));
+        return updated;
+      });
       if (mode === 'triage') {
         setIsTriageModalOpen(true);
       }
@@ -381,6 +399,8 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         localStorage.setItem(LS_LAST_CHECKIN_KEY, JSON.stringify(fullPayload));
         localStorage.setItem(LS_AI_RESPONSE_KEY, JSON.stringify(response));
+        setHasCompletedCheckIn(true);
+        localStorage.setItem(LS_CHECKIN_DONE_KEY, 'true');
 
         setIsCheckInOpen(false);
 
@@ -461,6 +481,7 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isTriageModalOpen,
         isRecoveryPlayerOpen,
         isExplanationModalOpen,
+        hasCompletedCheckIn,
         lastCheckIn,
         lastCheckInTime,
         aiResponse,
@@ -490,6 +511,7 @@ export const EnergyModeProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         runDemoPreset,
         updateSafetyResources,
         refreshWellnessHistory,
+        resetCheckInStatus,
       }}
     >
       {children}
