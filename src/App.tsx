@@ -192,21 +192,21 @@ const AppLayout: React.FC = () => {
 
       {/* Footer (hidden on login and doctor portal pages) */}
       {!isLoginPage && !isDoctorPortal && (
-        <footer className="border-t border-slate-200/80 bg-white py-8 px-4 sm:px-6 lg:px-8 mt-16 text-xs text-slate-600 shadow-sm">
+        <footer className="border-t border-slate-200/80 bg-white py-6 px-4 sm:px-6 lg:px-8 mt-16 text-xs text-slate-500 shadow-2xs">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-4 h-4 text-cyan-600" />
-              <span className="font-display font-bold text-slate-900">MediVault Cryptographic Health Platform</span>
-              <span className="text-slate-500">— Zero-Knowledge Lifetime Records</span>
+              <ShieldCheck className="w-4 h-4 text-teal-600" />
+              <span className="font-display font-bold text-slate-900">MediVault Health Platform</span>
+              <span className="text-slate-400">— Secure Lifetime Medical Records</span>
             </div>
 
             <div className="flex items-center space-x-4">
-              <span className="flex items-center space-x-1 text-cyan-700 font-semibold">
-                <Lock className="w-3.5 h-3.5 text-cyan-600" />
-                <span>AES-256-GCM Sovereign Encryption</span>
+              <span className="flex items-center space-x-1 text-teal-800 font-semibold">
+                <Lock className="w-3.5 h-3.5 text-teal-600" />
+                <span>Encrypted Health Vault</span>
               </span>
               <span className="text-slate-300">•</span>
-              <span className="text-slate-500 font-mono">v1.0.0</span>
+              <span className="text-slate-400 font-mono">v1.0.0</span>
             </div>
           </div>
         </footer>

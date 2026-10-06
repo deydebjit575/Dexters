@@ -10,14 +10,14 @@ import {
   Menu,
   X,
   Lock,
-  UserCheck,
-  Activity,
   Globe,
   LogIn,
   UserPlus,
-  RefreshCw,
   LogOut,
   Sparkles,
+  FileText,
+  LayoutDashboard,
+  User,
 } from 'lucide-react';
 import { useMediVault } from '../context/MediVaultContext';
 import { FirebaseAuthModal } from './FirebaseAuthModal';
@@ -36,8 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
     currentLang,
     setCurrentLang,
     currentUser,
-    isFetchingFirebase,
-    fetchCompleteFirebaseData,
+    patient,
     logoutUser,
   } = useMediVault();
 
@@ -60,110 +59,159 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
     navigate('/');
   };
 
-  // Determine which nav item is active based on current pathname
+  // Determine active nav state
   const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
+    if (path === '/dashboard') {
+      return (
+        location.pathname === '/dashboard' ||
+        location.pathname === '/profile' ||
+        location.pathname === '/settings' ||
+        location.pathname === '/dashboard/security' ||
+        location.pathname === '/dashboard/ai'
+      );
+    }
+    if (path === '/medical-records') {
+      return (
+        location.pathname.startsWith('/medical-records') ||
+        location.pathname === '/upload-records'
+      );
+    }
+    if (path === '/doctor-portal') {
+      return location.pathname === '/doctor-portal';
+    }
+    if (path === '/dashboard/access') {
+      return (
+        location.pathname === '/dashboard/access' ||
+        location.pathname === '/settings/permissions'
+      );
+    }
+    return location.pathname === path;
   };
+
+  const displayName = patient?.fullName?.trim() || currentUser?.displayName?.trim() || 'Patient';
+  const displayInitials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase() || 'PT';
 
   return (
     <>
-      {/* Persistent Gentle Mode / Energy Status Header Pill */}
+      {/* Gentle Mode / Recovery Status Banner */}
       {(isGentleMode || needsReCheck) && <HeaderPill />}
 
-      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/90 border-b border-slate-200/80 shadow-sm transition-colors">
+      <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-white/95 border-b border-slate-200/80 shadow-xs transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-18">
             
             {/* Logo & Brand */}
             <div
-              onClick={() => navigate('/')}
-              className="flex items-center space-x-3 cursor-pointer group"
+              onClick={() => navigate(currentUser ? '/dashboard' : '/')}
+              className="flex items-center space-x-3 cursor-pointer group select-none"
             >
-              <div className="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400 via-cyan-500 to-blue-600 p-0.5 shadow-glow-cyan group-hover:scale-105 transition-transform duration-300">
-                <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
-                  <ShieldCheck className="w-6 h-6 text-cyan-600 group-hover:rotate-6 transition-transform" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-teal-500 to-cyan-400 p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
+                <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-teal-600" />
                 </div>
               </div>
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="font-display font-extrabold text-2xl tracking-tight text-slate-900">
-                    Medi<span className="gradient-text-cyan">Vault</span>
+                  <span className="font-display font-extrabold text-xl tracking-tight text-slate-900">
+                    Medi<span className="text-teal-600">Vault</span>
                   </span>
-                  <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200">
-                    AES-256
+                  <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                    Secure
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 hidden sm:block font-medium">Sovereign Medical Infrastructure</p>
+                <p className="text-[11px] text-slate-500 hidden sm:block font-medium">Healthcare Record Platform</p>
               </div>
             </div>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden xl:flex items-center space-x-1 bg-slate-100/90 p-1.5 rounded-full border border-slate-200/80">
-              <button
-                onClick={() => navigate('/')}
-                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all ${
-                  isActive('/') && location.pathname === '/'
-                    ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20 font-bold'
-                    : 'text-slate-600 hover:text-cyan-600 hover:bg-slate-200/60'
-                }`}
-              >
-                Overview
-              </button>
+            <nav className="hidden lg:flex items-center space-x-1 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80">
               <button
                 onClick={() => navigate('/dashboard')}
-                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
-                  isActive('/dashboard') || isActive('/medical-records') || isActive('/upload-records') || isActive('/profile') || isActive('/settings')
-                    ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20 font-bold'
-                    : 'text-slate-600 hover:text-cyan-600 hover:bg-slate-200/60'
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                  isActive('/dashboard')
+                    ? 'bg-white text-teal-800 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                 }`}
               >
-                <UserCheck className="w-3.5 h-3.5" />
-                <span>Patient Dashboard</span>
+                <LayoutDashboard className="w-3.5 h-3.5 text-teal-600" />
+                <span>Dashboard</span>
               </button>
+
               <button
-                onClick={() => navigate('/dashboard/access')}
-                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
-                  isActive('/dashboard/access')
-                    ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20 font-bold'
-                    : 'text-slate-600 hover:text-cyan-600 hover:bg-slate-200/60'
+                onClick={() => navigate('/medical-records')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                  isActive('/medical-records')
+                    ? 'bg-white text-teal-800 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                 }`}
               >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Access Control</span>
+                <FileText className="w-3.5 h-3.5 text-teal-600" />
+                <span>Medical Records</span>
               </button>
+
               <button
                 onClick={() => navigate('/doctor-portal')}
-                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all flex items-center space-x-1.5 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
                   isActive('/doctor-portal')
-                    ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/20 font-bold'
-                    : 'text-cyan-700 hover:text-cyan-800 hover:bg-cyan-50'
+                    ? 'bg-white text-teal-800 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                 }`}
               >
-                <Stethoscope className="w-3.5 h-3.5" />
-                <span>Doctor Portal</span>
+                <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                <span>Doctors</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/dashboard/access')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                  isActive('/dashboard/access')
+                    ? 'bg-white text-teal-800 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5 text-teal-600" />
+                <span>Access</span>
               </button>
             </nav>
 
             {/* Action CTAs */}
-            <div className="hidden lg:flex items-center space-x-2">
-              {/* Energy Check-in Trigger Button */}
+            <div className="hidden lg:flex items-center space-x-2.5">
+              {/* AI Health Check CTA */}
               <button
                 onClick={openCheckInModal}
-                className="px-3 py-2 rounded-2xl bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-teal-200/80 text-xs font-bold text-teal-800 hover:bg-teal-100/50 hover:border-teal-300 flex items-center space-x-1.5 transition-all shadow-xs"
-                title="Adaptive Energy Check-in"
+                className="px-3.5 py-2 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-xs font-bold text-teal-800 flex items-center space-x-1.5 transition-all shadow-2xs"
+                title="AI Health Check"
               >
-                <Sparkles className="w-3.5 h-3.5 text-teal-600 animate-pulse" />
-                <span>⚡ Energy Check-in</span>
+                <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                <span>AI Health Check</span>
               </button>
 
-              {/* Language Switcher Selector */}
-              <div className="relative flex items-center bg-slate-100 border border-slate-200 rounded-2xl px-2 py-1.5 text-xs text-slate-700">
-                <Globe className="w-3.5 h-3.5 text-cyan-600 mr-1" />
+              {/* Emergency Access CTA */}
+              <button
+                onClick={onOpenEmergencyModal}
+                className="relative px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs flex items-center space-x-1.5 transition-colors"
+                title="Emergency Access Token"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Emergency</span>
+                {activeEmergencyToken && (
+                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
+                )}
+              </button>
+
+              {/* Language Selector */}
+              <div className="relative flex items-center bg-slate-100 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-700">
+                <Globe className="w-3.5 h-3.5 text-slate-500 mr-1" />
                 <select
                   value={currentLang}
                   onChange={(e) => setCurrentLang(e.target.value as any)}
-                  className="bg-transparent text-xs text-slate-800 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-xs text-slate-800 focus:outline-none cursor-pointer font-medium"
                 >
                   <option value="EN" className="bg-white text-slate-800">EN</option>
                   <option value="HI" className="bg-white text-slate-800">HI</option>
@@ -173,94 +221,77 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                 </select>
               </div>
 
-              {/* User Session Badge & Controls */}
-              {currentUser ? (
-                <div className="flex items-center space-x-2">
-                  {/* Fetch / Sync Button */}
-                  <button
-                    onClick={fetchCompleteFirebaseData}
-                    disabled={isFetchingFirebase}
-                    className="px-2.5 py-2 rounded-2xl bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 text-xs font-bold text-cyan-700 flex items-center space-x-1.5 transition-colors"
-                    title="Fetch Complete Firebase Data"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isFetchingFirebase ? 'animate-spin text-cyan-600' : ''}`} />
-                    <span className="hidden xl:inline">{isFetchingFirebase ? 'Fetching...' : 'Fetch Firebase Data'}</span>
-                  </button>
+              {/* Dark / Light Mode Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
+                title="Toggle Theme"
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-600" />}
+              </button>
 
-                  <div className="flex items-center space-x-2 px-3 py-1.5 rounded-2xl bg-slate-100 border border-slate-200 text-xs">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-[10px]">
-                      {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}
+              {/* User Session / Profile */}
+              {currentUser ? (
+                <div className="flex items-center space-x-2 pl-1 border-l border-slate-200">
+                  <button
+                    onClick={() => navigate('/profile')}
+                    className="flex items-center space-x-2 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs transition-colors"
+                    title="View Profile"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center text-white font-bold text-[10px]">
+                      {displayInitials}
                     </div>
-                    <span className="font-semibold text-slate-800 max-w-[110px] truncate">
-                      {currentUser.displayName || 'Authenticated User'}
-                    </span>
-                    <button
-                      onClick={handleLogout}
-                      className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
-                      title="Logout User"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                    <div className="text-left">
+                      <p className="font-bold text-slate-900 leading-tight max-w-[90px] truncate">
+                        {displayName}
+                      </p>
+                      <p className="text-[10px] text-slate-500">Patient</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ) : (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1.5 pl-1 border-l border-slate-200">
                   <button
                     onClick={() => navigate('/login')}
-                    className="px-3 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 flex items-center space-x-1.5 transition-colors"
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold text-slate-700 flex items-center space-x-1 transition-colors"
                   >
-                    <LogIn className="w-3.5 h-3.5 text-cyan-600" />
+                    <LogIn className="w-3.5 h-3.5 text-slate-600" />
                     <span>Login</span>
                   </button>
 
                   <button
                     onClick={() => openAuth('register')}
-                    className="px-3 py-2 rounded-2xl bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 text-xs font-bold text-cyan-700 flex items-center space-x-1.5 transition-colors"
+                    className="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-xs font-bold text-teal-800 flex items-center space-x-1 transition-colors"
                   >
-                    <UserPlus className="w-3.5 h-3.5 text-cyan-600" />
-                    <span>New User</span>
+                    <UserPlus className="w-3.5 h-3.5 text-teal-700" />
+                    <span>Register</span>
                   </button>
                 </div>
               )}
 
-              {/* Emergency Token Trigger Button */}
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={onOpenEmergencyModal}
-                className="relative overflow-hidden px-3.5 py-2 rounded-2xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-extrabold shadow-md shadow-cyan-500/25 flex items-center space-x-1.5 transition-colors"
-              >
-                <KeyRound className="w-4 h-4 text-white" />
-                <span className="hidden sm:inline">Emergency Token</span>
-                {activeEmergencyToken && (
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                )}
-              </motion.button>
-
-              {/* Dark / Light Mode Toggle */}
-              <button
-                onClick={toggleTheme}
-                className="p-2 py-2 rounded-2xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-cyan-600 hover:border-cyan-300 transition-all"
-                title="Toggle Dark/Light Mode"
-              >
-                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-cyan-600" />}
-              </button>
-
             </div>
 
-            {/* Mobile Hamburger & Controls */}
+            {/* Mobile Menu Button */}
             <div className="flex lg:hidden items-center space-x-2">
               <button
-                onClick={toggleTheme}
-                className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600"
+                onClick={onOpenEmergencyModal}
+                className="px-2.5 py-1.5 rounded-xl bg-cyan-600 text-white text-xs font-bold flex items-center space-x-1"
               >
-                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-cyan-600" />}
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Emergency</span>
               </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 hover:text-cyan-600"
+                className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900"
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
 
@@ -274,28 +305,28 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="lg:hidden border-t border-slate-200 bg-white/95 backdrop-blur-2xl px-4 pt-4 pb-6 space-y-3 shadow-lg"
+              className="lg:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-5 space-y-2 shadow-lg"
             >
-              <button
-                onClick={() => {
-                  navigate('/');
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 rounded-xl bg-slate-50 text-slate-800 text-xs font-semibold flex items-center space-x-3 hover:bg-cyan-50 hover:text-cyan-600"
-              >
-                <Activity className="w-4 h-4 text-cyan-600" />
-                <span>Landing Page Overview</span>
-              </button>
-
               <button
                 onClick={() => {
                   navigate('/dashboard');
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-4 py-3 rounded-xl bg-slate-50 text-slate-800 text-xs font-semibold flex items-center space-x-3 hover:bg-cyan-50 hover:text-cyan-600"
+                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs font-bold flex items-center space-x-2.5 hover:bg-teal-50"
               >
-                <UserCheck className="w-4 h-4 text-cyan-600" />
-                <span>Patient Dashboard</span>
+                <LayoutDashboard className="w-4 h-4 text-teal-600" />
+                <span>Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  navigate('/medical-records');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs font-bold flex items-center space-x-2.5 hover:bg-teal-50"
+              >
+                <FileText className="w-4 h-4 text-teal-600" />
+                <span>Medical Records</span>
               </button>
 
               <button
@@ -303,33 +334,71 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                   navigate('/doctor-portal');
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-4 py-3 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-700 text-xs font-semibold flex items-center space-x-3"
+                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs font-bold flex items-center space-x-2.5 hover:bg-teal-50"
               >
-                <Stethoscope className="w-4 h-4 text-cyan-600" />
-                <span>Emergency Doctor Portal</span>
+                <Stethoscope className="w-4 h-4 text-teal-600" />
+                <span>Doctor Portal</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  navigate('/dashboard/access');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-slate-50 text-slate-800 text-xs font-bold flex items-center space-x-2.5 hover:bg-teal-50"
+              >
+                <Lock className="w-4 h-4 text-teal-600" />
+                <span>Access Control</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  openCheckInModal();
+                }}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-teal-50 text-teal-800 text-xs font-bold flex items-center space-x-2.5"
+              >
+                <Sparkles className="w-4 h-4 text-teal-600" />
+                <span>AI Health Check</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenEmergencyModal();
+                }}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-cyan-600 text-white text-xs font-bold flex items-center space-x-2.5"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span>Emergency Access Token</span>
               </button>
 
               {currentUser ? (
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-3"
-                >
-                  <LogOut className="w-4 h-4 text-rose-500" />
-                  <span>Logout ({currentUser.displayName})</span>
-                </button>
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-slate-500" />
+                    <span className="text-xs font-bold text-slate-800">{displayName}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-xs text-rose-600 font-bold hover:underline"
+                  >
+                    Logout
+                  </button>
+                </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
                   <button
                     onClick={() => {
                       navigate('/login');
                       setMobileMenuOpen(false);
                     }}
-                    className="py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 flex items-center justify-center space-x-1"
+                    className="py-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 flex items-center justify-center space-x-1"
                   >
-                    <LogIn className="w-3.5 h-3.5 text-cyan-600" />
+                    <LogIn className="w-3.5 h-3.5" />
                     <span>Login</span>
                   </button>
                   <button
@@ -337,24 +406,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEmergencyModal }) => {
                       openAuth('register');
                       setMobileMenuOpen(false);
                     }}
-                    className="py-2.5 rounded-xl bg-cyan-50 border border-cyan-200 text-xs font-bold text-cyan-700 flex items-center justify-center space-x-1"
+                    className="py-2 rounded-xl bg-teal-600 text-xs font-bold text-white flex items-center justify-center space-x-1"
                   >
-                    <UserPlus className="w-3.5 h-3.5 text-cyan-600" />
+                    <UserPlus className="w-3.5 h-3.5" />
                     <span>Register</span>
                   </button>
                 </div>
               )}
-
-              <button
-                onClick={() => {
-                  onOpenEmergencyModal();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-xs shadow-md shadow-cyan-500/25 flex items-center justify-center space-x-2"
-              >
-                <KeyRound className="w-4 h-4" />
-                <span>Generate Emergency Token</span>
-              </button>
             </motion.div>
           )}
         </AnimatePresence>

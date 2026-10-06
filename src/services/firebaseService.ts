@@ -55,11 +55,13 @@ export const isDemoUser = (_user: FirebaseUser | null): boolean => {
   return false;
 };
 
-export const loginWithEmail = async (email: string, _pass: string): Promise<FirebaseUser> => {
+export const loginWithEmail = async (inputStr: string, _pass: string): Promise<FirebaseUser> => {
   await new Promise((r) => setTimeout(r, 600));
 
-  const formattedEmail = email.toLowerCase().trim();
-  const uid = `user-${formattedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const trimmedInput = inputStr.trim();
+  const isActualEmail = trimmedInput.includes('@');
+  const formattedEmail = isActualEmail ? trimmedInput.toLowerCase() : '';
+  const uid = `user-${trimmedInput.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   let displayName = '';
 
@@ -68,14 +70,14 @@ export const loginWithEmail = async (email: string, _pass: string): Promise<Fire
   if (savedUser) {
     try {
       const parsed: FirebaseUser = JSON.parse(savedUser);
-      if (parsed.email === formattedEmail && parsed.displayName) {
+      if (parsed.uid === uid && parsed.displayName) {
         displayName = parsed.displayName;
       }
     } catch {}
   }
 
   // 2. Check persistent user accounts registry
-  if (!displayName) {
+  if (!displayName && formattedEmail) {
     const registry = getUserAccountsRegistry();
     if (registry[formattedEmail]?.displayName) {
       displayName = registry[formattedEmail].displayName;
@@ -93,10 +95,15 @@ export const loginWithEmail = async (email: string, _pass: string): Promise<Fire
     } catch {}
   }
 
-  // 4. Fallback: derive from email prefix only if no registered name exists anywhere
+  // 4. Fallback: if user entered their name directly or email
   if (!displayName) {
-    const nameFromEmail = formattedEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ');
-    displayName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+    if (!isActualEmail) {
+      // User entered their name directly (e.g. "Srijeet dey")
+      displayName = trimmedInput;
+    } else {
+      const nameFromEmail = formattedEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ');
+      displayName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+    }
   }
 
   const user: FirebaseUser = {
@@ -113,9 +120,11 @@ export const loginWithEmail = async (email: string, _pass: string): Promise<Fire
 
 export const registerWithEmail = async (name: string, email: string, _pass: string): Promise<FirebaseUser> => {
   await new Promise((r) => setTimeout(r, 600));
-  const formattedEmail = email.toLowerCase().trim();
+  const trimmedEmail = email.trim();
+  const isActualEmail = trimmedEmail.includes('@');
+  const formattedEmail = isActualEmail ? trimmedEmail.toLowerCase() : '';
   const displayName = name.trim();
-  const uid = `user-${formattedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const uid = `user-${(isActualEmail ? formattedEmail : displayName.toLowerCase()).replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   const user: FirebaseUser = {
     uid,
@@ -165,11 +174,16 @@ export const fetchUserDataFromFirebase = async (
 ): Promise<FirebaseUserData | null> => {
   await new Promise((r) => setTimeout(r, 400));
   const raw = localStorage.getItem(`medivault_firebase_db_${uid}`);
+  const isActualEmail = defaultEmail && defaultEmail.includes('@');
   if (raw) {
     try {
       const data: FirebaseUserData = JSON.parse(raw);
       if (!data.patient.id) data.patient.id = uid;
-      if (defaultEmail && !data.patient.email) data.patient.email = defaultEmail;
+      if (isActualEmail && (!data.patient.email || !data.patient.email.includes('@'))) {
+        data.patient.email = defaultEmail;
+      } else if (!data.patient.email || !data.patient.email.includes('@')) {
+        data.patient.email = '';
+      }
       if (defaultName && (!data.patient.fullName || data.patient.fullName.trim() === '')) {
         data.patient.fullName = defaultName;
       }
@@ -187,7 +201,7 @@ export const fetchUserDataFromFirebase = async (
     dob: '',
     gender: '',
     bloodType: '',
-    email: defaultEmail || '',
+    email: isActualEmail ? defaultEmail : '',
     phone: '',
     address: '',
     emergencyContact: {

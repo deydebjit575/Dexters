@@ -5,7 +5,6 @@ import {
   TrendingUp,
   Activity,
   Heart,
-  Droplets,
   ShieldCheck,
   ShieldAlert,
   HelpCircle,
@@ -13,26 +12,17 @@ import {
   CheckCircle2,
   Circle,
   Clock,
-  RefreshCw,
   PhoneCall,
-  Info,
-  ChevronRight,
   Brain,
   AlertTriangle,
   X,
   FileText,
-  Calendar,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { useEnergyMode } from '../context/EnergyModeContext';
 import { useMediVault } from '../context/MediVaultContext';
 import { WellnessScoreRing } from './WellnessScoreRing';
-import { WellnessRecord } from '../types/energy';
 
-export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: () => void }> = ({
-  onOpenEmergencyModal,
-}) => {
+export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: () => void }> = () => {
   const {
     currentMode,
     setMode,
@@ -45,7 +35,6 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
     activeExplanation,
     active10MinPlan,
     wellnessInsight,
-    safetyResources,
     hasCompletedCheckIn,
   } = useEnergyMode();
 
@@ -58,20 +47,12 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
     setCompleted10MinSteps((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
 
-  const hour = new Date().getHours();
-  const timeGreeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const timeIcon = hour < 18 ? (
-    <Sun className="w-8 h-8 text-cyan-400 fill-cyan-400/20 inline-block animate-pulse" />
-  ) : (
-    <Moon className="w-8 h-8 text-cyan-400 fill-cyan-400/20 inline-block" />
-  );
-  const patientName = patient?.fullName || currentUser?.displayName || 'User';
+  const patientName = patient?.fullName?.trim() || currentUser?.displayName?.trim() || 'Patient';
 
   const latestRecord = wellnessHistory[0];
   const latestEnergy = hasCompletedCheckIn ? (latestRecord?.energyLevel || (aiResponse?.energy_level || 3)) : 0;
   const latestStress = hasCompletedCheckIn ? (latestRecord?.stressLevel || (aiResponse?.stress_level || 2)) : 0;
   const latestSymptomsCount = hasCompletedCheckIn ? (latestRecord?.symptoms || []).filter((s) => s !== 'None').length : 0;
-  const scoreOverride = hasCompletedCheckIn ? undefined : 0;
 
   // Extract last 7 assessments for Weekly Trend charts (sorted chronologically)
   const chartRecords = [...wellnessHistory].reverse().slice(-7);
@@ -84,20 +65,19 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
   const renderTrendChart = (
     dataKey: 'energyLevel' | 'stressLevel',
     colorHex: string,
-    gradientId: string,
-    label: string
+    gradientId: string
   ) => {
     if (chartRecords.length === 0) {
       return (
-        <div className="h-32 flex items-center justify-center text-xs text-slate-400 font-mono">
-          No assessment history yet. Complete a check-in to plot trends.
+        <div className="h-28 flex items-center justify-center text-xs text-slate-400 font-medium">
+          No assessment history yet. Complete an AI Health Check to plot trends.
         </div>
       );
     }
 
-    const height = 120;
-    const width = 320;
-    const padding = 24;
+    const height = 110;
+    const width = 300;
+    const padding = 20;
 
     const points = chartRecords.map((r, i) => {
       const x =
@@ -105,7 +85,6 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
           ? width / 2
           : padding + (i / (chartRecords.length - 1)) * (width - 2 * padding);
       const val = r[dataKey] || 3;
-      // y scaled between 1 and 5
       const y = height - padding - ((val - 1) / 4) * (height - 2 * padding);
       return { x, y, val, date: new Date(r.timestamp).toLocaleDateString(undefined, { weekday: 'short' }) };
     });
@@ -124,18 +103,18 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
 
     return (
       <div className="relative">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-32 overflow-visible">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-28 overflow-visible">
           <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={colorHex} stopOpacity="0.3" />
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="1">
+              <stop offset="0%" stopColor={colorHex} stopOpacity="0.25" />
               <stop offset="100%" stopColor={colorHex} stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
           {/* Grid lines */}
-          <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="#E2E8F0" strokeDasharray="3 3" />
-          <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke="#E2E8F0" strokeDasharray="3 3" />
-          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#CBD5E1" />
+          <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="#F1F5F9" />
+          <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke="#F1F5F9" />
+          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#E2E8F0" />
 
           {/* Area fill */}
           {areaD && <path d={areaD} fill={`url(#${gradientId})`} />}
@@ -146,29 +125,28 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
               d={pathD}
               fill="none"
               stroke={colorHex}
-              strokeWidth="2.5"
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           )}
 
-          {/* Interactive Data Points */}
+          {/* Data Points */}
           {points.map((p, i) => (
             <g key={i} className="group cursor-pointer">
               <circle
                 cx={p.x}
                 cy={p.y}
-                r="4.5"
+                r="3.5"
                 fill="#FFFFFF"
                 stroke={colorHex}
-                strokeWidth="2.5"
-                className="transition-transform group-hover:scale-125"
+                strokeWidth="2"
               />
               <text
                 x={p.x}
-                y={p.y - 8}
+                y={p.y - 7}
                 textAnchor="middle"
-                fontSize="10"
+                fontSize="9"
                 fontWeight="bold"
                 fill="#334155"
               >
@@ -176,9 +154,9 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
               </text>
               <text
                 x={p.x}
-                y={height - 6}
+                y={height - 4}
                 textAnchor="middle"
-                fontSize="9"
+                fontSize="8"
                 fill="#94A3B8"
                 fontWeight="500"
               >
@@ -202,74 +180,76 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
   });
 
   return (
-    <div className="space-y-8">
-      {/* 1. Personalized Welcome & Interactive Score Ring Command Center */}
-      <div className="rounded-3xl bg-[#0F172A] border border-slate-800 p-6 sm:p-8 shadow-xl relative overflow-hidden text-white">
-        <div className="ambient-glow-cyan -top-20 -left-20 opacity-20" />
-
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Greeting & Prompt */}
-          <div className="lg:col-span-7 space-y-4">
+    <div className="space-y-6">
+      {/* 1. Health Status & Score Summary Card */}
+      <div className="rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-7 shadow-xs">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          {/* Greeting & Check-in Prompt */}
+          <div className="lg:col-span-7 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-500/20 text-teal-300 border border-teal-500/30 font-mono">
-                ✨ Sovereign Wellness Command Center
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                AI Health Assistant
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Firestore Secured ({wellnessHistory.length} Saved)</span>
-              </span>
+              {hasCompletedCheckIn && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                  <span>Assessment Complete</span>
+                </span>
+              )}
             </div>
 
             <div>
-              <h1 className="text-3xl sm:text-4xl font-display font-extrabold tracking-tight text-white flex items-center space-x-2">
-                <span>{timeGreeting}, {patientName}</span>
-                {timeIcon}
-              </h1>
-              <p className="text-base font-semibold text-teal-300 mt-1">
-                How are you feeling today?
+              <h2 className="text-xl sm:text-2xl font-display font-bold tracking-tight text-slate-900">
+                Health & Wellness Status
+              </h2>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                {hasCompletedCheckIn
+                  ? `Assessment updated for ${patientName}. Review your health indicators and personalized next steps below.`
+                  : 'Complete your 1-minute AI Health Check to generate your wellness assessment and guidance.'}
               </p>
             </div>
 
-            <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
-              Your overall wellness state is actively monitored. Complete your daily 5-step assessment to receive tailored guidance and update your weekly trends.
-            </p>
+            {/* Assessment results or prompt */}
+            {hasCompletedCheckIn ? (
+              <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-1 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800">
+                  AI Assessment Summary:
+                </span>
+                <p className="font-semibold text-slate-900">
+                  {wellnessInsight || 'Stable condition. Maintain routine hydration and scheduled rest.'}
+                </p>
+              </div>
+            ) : null}
 
-            <div className="pt-2 flex flex-wrap items-center gap-3">
+            <div className="pt-1 flex flex-wrap items-center gap-2.5">
               <button
                 onClick={openCheckInModal}
-                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-600 text-white text-xs font-extrabold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.02] transition-all flex items-center space-x-2"
+                className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs transition-all flex items-center space-x-1.5"
               >
-                <Sparkles className="w-4 h-4 animate-pulse" />
-                <span>Start Wellness Check →</span>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{hasCompletedCheckIn ? 'Re-take Health Check' : 'Start Health Check'}</span>
               </button>
 
-              {currentMode !== 'normal' ? (
+              {currentMode !== 'normal' && (
                 <button
                   onClick={() => setMode('normal')}
-                  className="px-5 py-3.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-extrabold border border-emerald-500/40 transition-all flex items-center space-x-2"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-all flex items-center space-x-1.5"
                 >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Switch to Normal Mode</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => setMode('recovery')}
-                  className="px-5 py-3.5 rounded-2xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 text-xs font-semibold border border-teal-500/20 transition-all flex items-center space-x-1.5"
-                >
-                  <span>Switch to Recovery Mode</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Normal Mode</span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* Interactive Wellness Score Ring Card */}
+          {/* Wellness Score Ring / Status */}
           <div className="lg:col-span-5 flex justify-center">
-            <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-md w-full max-w-sm flex flex-col items-center">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 w-full max-w-xs flex flex-col items-center">
               <WellnessScoreRing
                 energyLevel={latestEnergy}
                 stressLevel={latestStress}
                 symptomsCount={latestSymptomsCount}
-                scoreOverride={scoreOverride}
+                isPending={!hasCompletedCheckIn}
                 onClickCheckIn={openCheckInModal}
               />
             </div>
@@ -277,272 +257,227 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
         </div>
       </div>
 
-      {/* 2. Emergency Risk Escalation Warning Layer */}
+      {/* 2. Emergency Risk Escalation Warning Layer (if triggered) */}
       {urgentWarningText && (
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 text-white shadow-xl space-y-4 border-2 border-rose-300 relative"
+          className="p-5 sm:p-6 rounded-3xl bg-rose-50 border border-rose-200 text-rose-950 shadow-xs space-y-3"
         >
-          <div className="flex items-start space-x-4">
-            <div className="p-3.5 rounded-2xl bg-white/20 backdrop-blur-md">
-              <ShieldAlert className="w-8 h-8 text-white animate-bounce" />
+          <div className="flex items-start space-x-3.5">
+            <div className="p-2.5 rounded-xl bg-rose-600 text-white">
+              <ShieldAlert className="w-6 h-6" />
             </div>
-            <div className="space-y-1">
-              <span className="px-3 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-white text-rose-700 tracking-wider">
-                Urgent Medical Alert Layer
+            <div className="space-y-0.5">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-200 text-rose-800">
+                Medical Alert Notice
               </span>
-              <h3 className="text-lg font-extrabold font-display">
+              <h3 className="text-base font-bold text-rose-900 font-display">
                 Emergency Attention Recommended
               </h3>
-              <p className="text-xs font-semibold text-rose-100 leading-relaxed max-w-3xl">
+              <p className="text-xs font-medium text-rose-800 leading-relaxed max-w-3xl">
                 "{urgentWarningText}"
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/20">
-            <p className="text-[11px] text-rose-100 font-mono">
-              ⚠️ MediVault provides wellness support and does not replace emergency medical response.
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-rose-200">
+            <p className="text-[11px] text-rose-700">
+              MediVault AI provides wellness guidance and does not replace emergency clinical care.
             </p>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <a
                 href="tel:112"
-                className="px-4 py-2.5 rounded-xl bg-white text-rose-700 font-extrabold text-xs shadow-md hover:bg-rose-50 transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5"
               >
-                <PhoneCall className="w-4 h-4 text-rose-600" />
+                <PhoneCall className="w-3.5 h-3.5" />
                 <span>Call Emergency (112)</span>
               </a>
               <button
                 onClick={openTriageModal}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 text-white font-extrabold text-xs hover:bg-black transition-colors"
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition-colors"
               >
-                Open Emergency Services
+                Emergency Services
               </button>
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* 3. AI Health Trend Dashboard */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-extrabold text-slate-900 font-display flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-teal-600" />
-            <span>AI Health Trend Dashboard</span>
-          </h2>
-          <span className="text-xs text-slate-500 font-mono">
-            Firestore History ({wellnessHistory.length} check-ins)
-          </span>
-        </div>
-
-        {/* Dynamic Insight Banner */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-teal-500/10 via-cyan-500/10 to-emerald-500/10 border border-teal-200/80 shadow-xs flex items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-teal-600 text-white shadow-xs">
-              <Brain className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-800">
-                Simple Wellness Insight:
-              </span>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">
-                "{hasCompletedCheckIn ? wellnessInsight : 'Welcome! Complete your daily 5-step energy check-in to calculate your personalized wellness score & insights.'}"
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Charts & Symptoms Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Energy Trend Chart */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-teal-800 flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-teal-600" />
-                Weekly Energy Trend
-              </span>
-              <span className="text-[11px] font-extrabold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md">
-                1 to 5 Scale
-              </span>
-            </div>
-            {renderTrendChart('energyLevel', '#0D9488', 'energyGrad', 'Energy')}
-          </div>
-
-          {/* Stress Trend Chart */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
-                <Heart className="w-4 h-4 text-amber-600" />
-                Weekly Stress Trend
-              </span>
-              <span className="text-[11px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
-                1 to 5 Scale
-              </span>
-            </div>
-            {renderTrendChart('stressLevel', '#F59E0B', 'stressGrad', 'Stress')}
-          </div>
-
-          {/* Recent Symptoms Frequency */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-cyan-600" />
-              Recent Symptoms Summary
-            </span>
-
-            {Object.keys(symptomCounts).length === 0 ? (
-              <div className="h-28 flex items-center justify-center text-xs text-slate-400 font-mono">
-                No physical symptoms recorded.
-              </div>
-            ) : (
-              <div className="space-y-2 pt-1">
-                {Object.entries(symptomCounts).map(([symp, count]) => (
-                  <div
-                    key={symp}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs"
-                  >
-                    <span className="font-bold text-slate-800">{symp}</span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-teal-100 text-teal-800">
-                      {count} {count === 1 ? 'time' : 'times'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Smart Personalized Recommendation & Explain Button */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 border border-teal-200/80 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-teal-200/60 pb-5">
-          <div className="flex items-start space-x-3.5">
-            <div className="p-3 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20">
-              <Sparkles className="w-6 h-6 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-xl font-extrabold text-slate-900 font-display">
-                  Smart Personalized Recommendation
-                </h3>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-teal-100 text-teal-800 border border-teal-300">
-                  {currentMode.toUpperCase()} Mode
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Generated from energy, stress, symptoms, and recent wellness history.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {currentMode !== 'normal' && (
-              <button
-                onClick={() => setMode('normal')}
-                className="px-4 py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 font-bold text-xs shadow-xs transition-all flex items-center space-x-1.5"
-              >
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Switch to Normal Mode</span>
-              </button>
-            )}
-            {/* Explain My Recommendation Button */}
-            <button
-              onClick={() => setIsExplanationOpen(true)}
-              className="px-4 py-2.5 rounded-2xl bg-white hover:bg-teal-50 border border-teal-300 text-teal-900 font-bold text-xs shadow-xs transition-all flex items-center space-x-1.5"
-            >
-              <HelpCircle className="w-4 h-4 text-teal-600" />
-              <span>Explain My Recommendation</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tailored Micro-Actions */}
+      {/* 3. AI Health Trend Charts */}
+      {hasCompletedCheckIn && (
         <div className="space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-            Tailored 3-Minute Guided Session Micro-Actions:
-          </h4>
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 font-display flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-teal-600" />
+              <span>Weekly Health Trends</span>
+            </h3>
+            <span className="text-xs text-slate-500">
+              {wellnessHistory.length} check-in{wellnessHistory.length === 1 ? '' : 's'} recorded
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {recoveryPlan.map((step, idx) => (
-              <div
-                key={idx}
-                className="p-4 rounded-2xl bg-white/90 border border-teal-200/80 shadow-xs space-y-1"
-              >
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-teal-100 text-teal-800">
-                  Step {idx + 1} ({step.duration_seconds}s)
+          {/* Charts & Symptoms Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Energy Trend */}
+            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-teal-600" />
+                  Energy Trend
                 </span>
-                <h5 className="text-xs font-bold text-slate-900 mt-1">{step.title}</h5>
-                <p className="text-[11px] text-slate-600 leading-relaxed">{step.description}</p>
+                <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md">
+                  1–5 Scale
+                </span>
               </div>
-            ))}
+              {renderTrendChart('energyLevel', '#0D9488', 'energyGrad')}
+            </div>
+
+            {/* Stress Trend */}
+            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Heart className="w-3.5 h-3.5 text-amber-600" />
+                  Stress Trend
+                </span>
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+                  1–5 Scale
+                </span>
+              </div>
+              {renderTrendChart('stressLevel', '#F59E0B', 'stressGrad')}
+            </div>
+
+            {/* Symptoms Summary */}
+            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-slate-500" />
+                Reported Symptoms
+              </span>
+
+              {Object.keys(symptomCounts).length === 0 ? (
+                <div className="h-28 flex items-center justify-center text-xs text-slate-400">
+                  No physical symptoms reported.
+                </div>
+              ) : (
+                <div className="space-y-1.5 pt-1">
+                  {Object.entries(symptomCounts).map(([symp, count]) => (
+                    <div
+                      key={symp}
+                      className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs"
+                    >
+                      <span className="font-medium text-slate-800">{symp}</span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-800">
+                        {count}x
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Guided Session Launcher */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <button
-            onClick={openRecoveryPlayer}
-            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 text-white font-extrabold text-xs shadow-md shadow-teal-500/25 hover:shadow-teal-500/40 hover:scale-[1.02] transition-all flex items-center space-x-2"
-          >
-            <Play className="w-4 h-4 fill-white" />
-            <span>Start 3-Minute Guided Activity</span>
-          </button>
-
-          <p className="text-[10px] text-slate-400 font-mono">
-            ℹ️ Framed strictly as general wellness guidance.
-          </p>
-        </div>
-      </div>
-
-      {/* 5. Personalized 10-Minute Wellness Plan */}
-      {active10MinPlan && (
-        <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 rounded-xl bg-cyan-100 text-cyan-700">
-                <Clock className="w-5 h-5" />
+      {/* 4. Tailored Recommendation Card */}
+      {hasCompletedCheckIn && (
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-start space-x-3">
+              <div className="p-2 rounded-xl bg-teal-50 text-teal-700">
+                <Brain className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900 font-display">
-                  {active10MinPlan.title}
-                </h3>
+                <h4 className="text-base font-bold text-slate-900 font-display">
+                  Recommended Health Actions
+                </h4>
                 <p className="text-xs text-slate-500">
-                  Adapted specifically for your current energy, stress, and symptoms.
+                  Personalized based on your latest energy, stress, and symptom responses.
                 </p>
               </div>
             </div>
-            <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-cyan-50 text-cyan-700 border border-cyan-200">
-              {active10MinPlan.totalDurationMinutes} Mins Total
+
+            <button
+              onClick={() => setIsExplanationOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs transition-colors flex items-center space-x-1.5 self-start sm:self-auto"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-teal-600" />
+              <span>Explain Recommendation</span>
+            </button>
+          </div>
+
+          {/* Micro-Actions */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {recoveryPlan.slice(0, 3).map((step, idx) => (
+              <div
+                key={idx}
+                className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1"
+              >
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">
+                  Step {idx + 1} ({step.duration_seconds}s)
+                </span>
+                <h5 className="text-xs font-bold text-slate-900 mt-1">{step.title}</h5>
+                <p className="text-[11px] text-slate-500 leading-relaxed">{step.description}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+            <button
+              onClick={openRecoveryPlayer}
+              className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-2"
+            >
+              <Play className="w-3.5 h-3.5 fill-white" />
+              <span>Start 3-Minute Guided Session</span>
+            </button>
+            <span className="text-[10px] text-slate-400">
+              General wellness guidance • Non-clinical
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 5. 10-Minute Wellness Plan (if present) */}
+      {hasCompletedCheckIn && active10MinPlan && (
+        <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center space-x-2.5">
+              <Clock className="w-4 h-4 text-teal-600" />
+              <h4 className="text-sm font-bold text-slate-900">
+                {active10MinPlan.title}
+              </h4>
+            </div>
+            <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+              {active10MinPlan.totalDurationMinutes} Mins
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {active10MinPlan.steps.map((step, idx) => {
               const isChecked = !!completed10MinSteps[idx];
               return (
                 <button
                   key={idx}
                   onClick={() => toggle10MinStep(idx)}
-                  className={`p-4 rounded-2xl border text-left transition-all flex items-start space-x-3 ${
+                  className={`p-3 rounded-2xl border text-left transition-all flex items-start space-x-2.5 ${
                     isChecked
-                      ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
+                      ? 'bg-teal-50/60 border-teal-300 text-teal-950'
                       : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
                   }`}
                 >
                   <div className="mt-0.5 shrink-0">
                     {isChecked ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <CheckCircle2 className="w-4 h-4 text-teal-600" />
                     ) : (
-                      <Circle className="w-5 h-5 text-slate-400" />
+                      <Circle className="w-4 h-4 text-slate-400" />
                     )}
                   </div>
                   <div>
-                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
-                      ✓ {step.durationMinutes} min {step.type}
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                      {step.durationMinutes} min {step.type}
                     </span>
-                    <h4 className={`text-xs font-bold mt-1 ${isChecked ? 'line-through opacity-80' : ''}`}>
+                    <h5 className={`text-xs font-bold ${isChecked ? 'line-through opacity-75' : ''}`}>
                       {step.title}
-                    </h4>
+                    </h5>
                     <p className="text-[11px] text-slate-500 mt-0.5">{step.description}</p>
                   </div>
                 </button>
@@ -552,86 +487,65 @@ export const WellnessIntelligenceDashboard: React.FC<{ onOpenEmergencyModal?: ()
         </div>
       )}
 
-      {/* 6. Interactive Modal: "Explain My Recommendation" */}
+      {/* Explanation Modal */}
       <AnimatePresence>
         {isExplanationOpen && activeExplanation && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsExplanationOpen(false)}
-              className="fixed inset-0 bg-slate-950/70 backdrop-blur-md transition-opacity"
-            />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-teal-100 overflow-hidden z-10 my-8"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-lg rounded-3xl bg-white shadow-xl border border-slate-200 overflow-hidden z-10 my-8"
             >
-              {/* Header */}
-              <div className="p-6 bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 text-white flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-md">
-                    <HelpCircle className="w-5 h-5 text-white" />
-                  </div>
+              <div className="p-5 bg-slate-900 text-white flex items-center justify-between">
+                <div className="flex items-center space-x-2.5">
+                  <HelpCircle className="w-5 h-5 text-teal-400" />
                   <div>
-                    <h3 className="font-extrabold text-base font-display">
-                      Explain My Recommendation
+                    <h3 className="font-bold text-sm">
+                      Recommendation Details
                     </h3>
-                    <p className="text-[11px] text-teal-100">
-                      Understandable, non-diagnostic transparent analysis
+                    <p className="text-[11px] text-slate-300">
+                      Transparent non-diagnostic breakdown
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsExplanationOpen(false)}
-                  className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+                  className="p-1 rounded-lg text-slate-400 hover:text-white"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-6 sm:p-8 space-y-5 text-xs text-slate-700 leading-relaxed">
-                {/* What You Entered */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-800">
-                    1. What You Entered
-                  </span>
+              <div className="p-6 space-y-4 text-xs text-slate-700 leading-relaxed">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-slate-500">1. User Inputs Summary</span>
                   <p className="font-semibold text-slate-900">{activeExplanation.userInputsSummary}</p>
                 </div>
 
-                {/* Why Selected */}
-                <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-900">
-                    2. Why System Selected This Activity
-                  </span>
+                <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-teal-800">2. Rationale</span>
                   <p className="font-medium text-slate-800">{activeExplanation.whySelected}</p>
                 </div>
 
-                {/* What It Supports */}
-                <div className="p-4 rounded-2xl bg-cyan-50 border border-cyan-200 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-900">
-                    3. What The Activity Is Intended To Support
-                  </span>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-slate-500">3. Expected Benefit</span>
                   <p className="font-medium text-slate-800">{activeExplanation.whatItSupports}</p>
                 </div>
 
-                {/* Medical Help Guidance */}
-                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-1 text-rose-950">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-800 flex items-center gap-1">
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 space-y-1 text-rose-950">
+                  <span className="text-[10px] font-bold uppercase text-rose-800 flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                    4. When To Seek Professional Medical Help
+                    4. When To Seek Professional Medical Care
                   </span>
                   <p className="font-medium">{activeExplanation.whenToSeekMedicalHelp}</p>
                 </div>
 
                 <button
                   onClick={() => setIsExplanationOpen(false)}
-                  className="w-full py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md transition-colors"
+                  className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition-colors"
                 >
-                  Close Explanation
+                  Close
                 </button>
               </div>
             </motion.div>
